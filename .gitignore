@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.Python
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# Editors / IDEs
+.vscode/
+.idea/
+*.swp
+
+# OS cruft
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+
+# Claude Code local settings
+.claude/settings.local.json
