@@ -4,10 +4,10 @@
 
 ```bash
 cd project
-pgzrun 05_week3_part1.py       # or 06_week3_part2.py
+pgzrun 03_week3_part1.py       # or 03_week3_part2.py
 ```
 
-## Part 1 — `05_week3_part1.py`: A pack of rivals, a grid, a finish line
+## Part 1 — `03_week3_part1.py`: A pack of rivals, a grid, a finish line
 
 **Goal for students:** race several cars at once, from a shared starting
 line, to an actual finish line, and find out what place they came in.
@@ -33,10 +33,10 @@ more new vocabulary lands here than in any other lesson (dicts, lists of
 dicts, list comprehensions, `random`, relative speed, an inverse function,
 finish-line rendering, string formatting). Consider splitting your own
 delivery: spawn + movement first, then finish line + placement, using
-`05_week3_part1.py` itself as the "answer key" checkpoint if the class runs
+`03_week3_part1.py` itself as the "answer key" checkpoint if the class runs
 long.
 
-## Part 2 — `06_week3_part2.py`: A proper start, and recovering from a crash
+## Part 2 — `03_week3_part2.py`: A proper start, and recovering from a crash
 
 **Goal for students:** a "READY TO RACE?" screen, a 3-2-1-GO countdown, and a
 crash that costs you time instead of ending your run.

@@ -1,14 +1,19 @@
-"""Week 1, Part 1 - Draw the map.
+"""Week 1, Part 1 - Draw the map, add the car, and drive it left and right.
 
 WHAT THIS FILE DOES
 --------------------
-This is the very first step: before we drive a car anywhere, we need
-somewhere to drive it. This file just opens a window and draws a road.
-There is no player, no keyboard input, and nothing moves. If you run this,
-you'll see a picture - that's the whole goal for today's first half hour.
+By the end of this section:
+  * a road is drawn - grass, a gravel shoulder, and tarmac
+  * a car (a Pygame Zero `Actor`) sits on it, and the arrow keys move it
+    left and right
 
-Pygame Zero (pgzero) is a "batteries included" wrapper around Pygame that is
-built for teaching. Two things to know up front:
+There is NO concept of speed yet - press an arrow key and the car moves left
+or right by a fixed amount every frame. It doesn't build up speed, it
+doesn't slow down on the grass, and it can't crash. All of that comes in
+Part 2. For now, the goal is just: "I press a key, my car moves."
+
+Pygame Zero (pgzero) is a wrapper around Pygame that is built for teaching.
+Two things remember:
   * It is NOT imported like a normal library. You never write
     `import pgzero` in a game file. Instead, you run the file with the
     `pgzrun` command, and pgzero quietly makes a handful of special names
@@ -18,37 +23,24 @@ built for teaching. Two things to know up front:
     that for us.
   * Pygame Zero looks for two functions you write yourself: `draw()`, which
     it calls every frame to repaint the screen, and `update()`, which it
-    calls every frame to move things around. This file only needs `draw()` -
-    there is nothing to update yet!
+    calls every frame to move things around.
 
 Run it with (from inside the `project` folder):
-    pip install pgzero
     pgzrun 01_week1_part1.py
 """
 
 # ---------------------------------------------------------------------------
-# SCREEN SIZE
+# CONSTANTS
 # ---------------------------------------------------------------------------
-# Pygame Zero reads WIDTH and HEIGHT once, when the window is first created,
-# and uses them to size the window. (800, 600) is a comfortable default -
-# wide enough to see the road and some grass on either side of it.
-WIDTH = 800
-HEIGHT = 600
 
-# ---------------------------------------------------------------------------
-# TUNING "KNOBS"
-# ---------------------------------------------------------------------------
-# We store measurements and settings in named constants (ALL_CAPS by
-# convention) instead of typing raw numbers all over the place. That way,
-# if we want a wider road later, we change ONE number instead of hunting
-# through the whole file.
+# SCREEN SIZE, ROAD DIMENSIONS, AND PLAYER LOCATION
+WIDTH = 800             # Width of the entire game screen
+HEIGHT = 600            # Height of the entire game screen
 ROAD_WIDTH = 220        # how wide the grey tarmac is, in pixels
 SHOULDER_WIDTH = 55     # width of the gravel strip on each side of the road
+PLAYER_ROW = 480        # how far down the screen the car sits, in pixels
 
-# ---------------------------------------------------------------------------
 # COLOURS
-# ---------------------------------------------------------------------------
-# Pygame Zero colours are just (red, green, blue) tuples, each 0-255.
 GRASS = (40, 120, 55)     # dark green - covers the whole background
 GRAVEL = (150, 140, 110)  # tan - the "shoulder" strip beside the road
 TARMAC = (60, 60, 68)     # dark grey - the actual road
@@ -58,7 +50,7 @@ LINE = (240, 240, 240)    # near-white - the dashed centre line
 # ---------------------------------------------------------------------------
 # WHERE IS THE ROAD?
 # ---------------------------------------------------------------------------
-# These three little functions answer "where is the road, at this height on
+# These three functions answer "where is the road, at this height on
 # the screen?" Right now the answer never changes (the road runs straight up
 # the middle), so road_center_x always returns the same number. We're
 # writing it as a FUNCTION rather than a plain constant on purpose: in a
@@ -87,6 +79,20 @@ def road_right(row):
     return road_center_x(row) + ROAD_WIDTH // 2
 
 
+# ---------------------------------------------------------------------------
+# THE PLAYER'S CAR
+# ---------------------------------------------------------------------------
+# `Actor` is a Pygame Zero class that bundles together an image, a position,
+# and handy helpers like `.draw()` and `.colliderect()`. `Actor("car_red", ...)`
+# looks for a file called `images/car_red.png` (pgzero always looks in a
+# folder named exactly `images`, right next to your game file).
+#
+# This line runs ONCE, when the file first loads - it creates the car and
+# places it at the horizontal centre of the screen, on PLAYER_ROW. Every
+# frame after that, `update()` below is what actually moves it.
+player = Actor("car_red", (WIDTH // 2, PLAYER_ROW))
+
+
 def draw():
     """Pygame Zero calls this once every frame to repaint the window."""
 
@@ -96,7 +102,7 @@ def draw():
 
     # We draw the road as a stack of thin horizontal strips, rather than one
     # tall rectangle. Right now every strip lines up perfectly, so it just
-    # looks like one long straight road - but building it this way means
+    # looks like one long straight road. But building it this way means
     # that later, when the road curves, we can shift each strip left or
     # right by a different amount and the road will visibly bend. None of
     # this drawing code will need to be rewritten when that happens.
@@ -132,6 +138,32 @@ def draw():
                 Rect(center_x - 3, top + 3, 6, strip_height - 6), LINE
             )
 
-# Notice there's no update() function in this file at all - that's allowed!
-# Pygame Zero is happy with a game that only draws a picture and never
-# changes it. We'll add update() (and a car to move around) in Part 2.
+    # Draw the car on top of the road. If you comment this line out, the car
+    # will still exist and still move (because update() still runs) - it
+    # just won't be visible. draw() and update() are separate jobs:
+    # update() changes WHERE things are, draw() shows what's there right now.
+    player.draw()
+
+
+def update():
+    """Pygame Zero calls this once every frame, right before draw()."""
+
+    # `keyboard` is another pgzero special name. It's always up to date
+    # with which keys are currently held down. `keyboard.left` is True for
+    # every single frame the left arrow is held, not just the first one, so
+    # holding the key moves the car continuously.
+    if keyboard.left:
+        player.x -= 5
+    if keyboard.right:
+        player.x += 5
+
+    # Without this, the car could be steered off the edge of the
+    # window and disappear. `max(...)` and `min(...)` together "clamp" a
+    # value between a low and a high bound - a very common pattern anywhere
+    # you need to keep a number inside a range.
+    player.x = max(20, min(WIDTH - 20, player.x))
+
+    # Notice there's nothing here checking whether the car is on the road,
+    # the shoulder, or the grass. Right now they all feel identical to
+    # drive on. That distinction, and the whole idea of a "speed" the car
+    # can build up or lose, is exactly what Part 2 adds.

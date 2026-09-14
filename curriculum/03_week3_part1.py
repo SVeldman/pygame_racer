@@ -15,17 +15,17 @@ fall into place naturally:
     tell who crossed the finish line first, second, third...
 
 Crashing still just ends the run for now ("CRASHED! Press SPACE to try
-again") - turning that into something gentler is next week's lesson.
+again") - turning that into something gentler is the next part of the lesson.
 
 Run it with (from inside the `project` folder):
     pip install pgzero
-    pgzrun 05_week3_part1.py
+    pgzrun 03_week3_part1.py
 """
 
 import random
 
 # ---------------------------------------------------------------------------
-# TUNING "KNOBS"
+# CONSTANTS
 # ---------------------------------------------------------------------------
 NUM_RIVALS = 3
 LANE_COUNT = NUM_RIVALS + 1              # one lane per rival, plus one for you
@@ -44,11 +44,11 @@ ROUGH_BRAKE = 0.40
 DASH_PERIOD = 60
 DASH_LENGTH = 30
 
-FINISH_DISTANCE = 3000
+FINISH_DISTANCE = 3900         # matches the "one lap" length used everywhere else
 RIVAL_COLORS = ["car_blue", "car_green", "car_yellow"]
 
 # Because LANE_COUNT depends on NUM_RIVALS, and WIDTH depends on LANE_COUNT,
-# turning this into a 6-rival race next semester is a one-line change - every
+# turning this into a 6-rival race is a one-line change - every
 # other number in this file recalculates itself.
 GRASS_MARGIN = 200
 WIDTH = ROAD_WIDTH + 2 * SHOULDER_WIDTH + 2 * GRASS_MARGIN
@@ -130,15 +130,18 @@ def new_race():
     player_lane = (grid[0] + 0.5) / LANE_COUNT
     player.pos = (lane_to_x(player_lane, PLAYER_ROW), PLAYER_ROW)
 
+    # random.sample() picks distinct colors, unlike calling random.choice()
+    # once per rival - so no two rivals end up looking the same.
+    rival_colors = random.sample(RIVAL_COLORS, k=len(grid) - 1)
     rivals = [
         {
-            "actor": Actor(random.choice(RIVAL_COLORS)),
+            "actor": Actor(color),
             "distance": 0,                         # everyone starts together
             "lane": (lane_i + 0.5) / LANE_COUNT,
             "base_speed": random.uniform(5.0, 8.5),
             "finished": False,
         }
-        for lane_i in grid[1:]
+        for lane_i, color in zip(grid[1:], rival_colors)
     ]
     # Actors don't get positioned until update() runs the movement loop
     # below - but draw() might run BEFORE the first update(). Position them

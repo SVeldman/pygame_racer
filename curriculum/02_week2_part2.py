@@ -1,23 +1,20 @@
-"""Week 2, Part 2 - The road scrolls, and you meet your first rival.
+"""Week 2, Part 2 - You meet your first rival.
 
 WHAT'S NEW SINCE PART 1
 -------------------------
-Two big ideas land in the same lesson, because the second one needs the
-first to already exist:
+Part 1 already has the road scrolling, throttle/brake, and
+`distance_traveled`. Now that WE have a distance for ourselves, we can give
+another car its OWN distance and use the GAP between the two distances to
+decide where to draw it on screen. This is the single most important trick
+in the whole game, so read the comment above `row_at()` carefully.
 
-  1. THE ROAD SCROLLS. Up to now the car has been able to move left and
-     right, but never "forward" - Part 1 had no sense of how far you'd
-     travelled. Now we track `distance_traveled`, and use it to make the
-     dashed centre line stream down the screen, creating the illusion that
-     you're driving forward even though the car itself stays put on
-     PLAYER_ROW. UP and DOWN now control the throttle and brake directly,
-     instead of speed building up automatically.
-
-  2. YOU MEET A RIVAL. Now that WE have a `distance_traveled` for
-     ourselves, we can give another car its own distance and use the GAP
-     between the two distances to decide where to draw it on screen. This
-     is the single most important trick in the whole game, so read the
-     comment above `row_at()` carefully.
+Along the way, a couple of smaller things change too:
+  * `WIDTH` is now CALCULATED from how many rivals there are, instead of a
+    fixed number - see the comment above it.
+  * `LANE_COUNT` shows up for the first time, giving the rival its own lane
+    to drive in, separate from yours.
+  * running into the rival now actually does something - it ends your run,
+    with SPACE to try again.
 
 There's no finish line yet, and no "winning" - that arrives next week, once
 we also have more than one rival. For now the goal is simpler: drive around
@@ -25,13 +22,13 @@ without hitting the other car.
 
 Run it with (from inside the `project` folder):
     pip install pgzero
-    pgzrun 04_week2_part2.py
+    pgzrun 02_week2_part2.py
 """
 
 import random
 
 # ---------------------------------------------------------------------------
-# TUNING "KNOBS"
+# CONSTANTS
 # ---------------------------------------------------------------------------
 NUM_RIVALS = 1                           # just one other car this week
 LANE_COUNT = NUM_RIVALS + 1              # one lane for the rival, one for you
@@ -135,10 +132,10 @@ def new_race():
     player_speed = 0.0
     distance_traveled = 0.0
     game_state = "racing"
-    player.pos = (WIDTH // 2, PLAYER_ROW)
+    player.pos = (lane_to_x(0.75, PLAYER_ROW), PLAYER_ROW)
     rival = {
         "actor": Actor(random.choice(RIVAL_COLORS)),
-        "distance": 500,           # the rival starts a little way ahead of you
+        "distance": 0,           # the rival starts even with you, not ahead
         "lane": 0.25,               # pick a lane that isn't where you start
         "base_speed": 6.5,          # the rival's own, constant, forward speed
     }

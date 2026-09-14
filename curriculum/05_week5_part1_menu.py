@@ -1,13 +1,14 @@
-"""Week 5, Bonus Option 1 - An advanced start menu.
+"""Week 5, Part 1 - An advanced start menu.
 
 WHAT THIS FILE ADDS
 --------------------
 Built on top of Week 4 Part 2, this file turns the plain "READY TO RACE?"
 screen into a real menu where you choose, before every race:
-  * CAR   - which sprite you drive
-  * RIVALS - how many opponents you're racing against
+  * CAR    - which sprite you drive
+  * RACERS - total cars in the race, including you - so "Racers: 4" means
+             you plus 3 AI opponents
   * LENGTH - Short / Medium / Long (how far FINISH_DISTANCE is)
-  * DIFFICULTY - Easy / Normal / Hard (how fast rivals are allowed to be)
+  * DIFFICULTY - Easy / Normal / Hard (how fast racers are allowed to be)
 
 Two new Pygame Zero / Python ideas show up here that earlier weeks avoided:
 
@@ -22,13 +23,13 @@ Two new Pygame Zero / Python ideas show up here that earlier weeks avoided:
      (`NUM_RIVALS`, `FINISH_DISTANCE`, ...) that were fixed for the whole
      file. Here, the menu can change them between races. Because the window
      itself can't resize once pgzero creates it, `WIDTH` is calculated ONCE
-     from `MAX_RIVALS` (the largest the menu allows) - picking fewer rivals
+     from `MAX_RACERS` (the largest the menu allows) - picking fewer racers
      just leaves extra grass showing on the sides instead of shrinking the
      window.
 
 Run it with (from inside the `project` folder):
     pip install pgzero
-    pgzrun 09_week5_start_menu.py
+    pgzrun 05_week5_part1_menu.py
 """
 
 import random
@@ -43,36 +44,37 @@ CAR_CHOICES = [
     "car_red", "car_blue", "car_green", "car_yellow",
     "car_orange", "car_pink", "car_silver", "car_white",
 ]
-MAX_RIVALS = 6
+MAX_RACERS = 7      # total cars, including the player
 
 # (label shown in the menu, FINISH_DISTANCE for that choice)
-# All three lengths are cut from the SAME master TRACK below, just at
-# different distances - so every length option still has turns the whole
-# way, none of them run out of track early.
+# One lap of ONE_LAP (below) is 3900m - the same length as the fixed race in
+# every non-menu file in this project. Short is exactly one lap; Medium and
+# Long are just more laps of the same course back to back, so every length
+# option still has turns the whole way, none of them run out of track early.
 LENGTH_OPTIONS = [
-    ("Short", 1300),
-    ("Medium", 2650),
-    ("Long", 3900),
+    ("Short", 3900),          # 1 lap
+    ("Medium", 7800),         # 2 laps
+    ("Long", 15600),          # 4 laps
 ]
 
-# (label shown in the menu, (slowest, fastest) rival base_speed range)
+# (label shown in the menu, (slowest, fastest) racer base_speed range)
 DIFFICULTY_OPTIONS = [
     ("Easy", (4.0, 6.0)),
     ("Normal", (5.0, 8.5)),
     ("Hard", (7.0, 10.0)),
 ]
 
-MENU_FIELDS = ["Car", "Rivals", "Length", "Difficulty"]
+MENU_FIELDS = ["Car", "Racers", "Length", "Difficulty"]
 
 # --- The player's current menu selections (change these with the menu) -----
 selected_field = 0       # index into MENU_FIELDS - which row is highlighted
 car_index = 0             # index into CAR_CHOICES
-num_rivals = 3            # 1..MAX_RIVALS
+num_racers = 4            # 1..MAX_RACERS, including the player
 length_index = 1          # index into LENGTH_OPTIONS (starts on "Medium")
 difficulty_index = 1      # index into DIFFICULTY_OPTIONS (starts on "Normal")
 
 # ---------------------------------------------------------------------------
-# TUNING "KNOBS" THAT DON'T CHANGE
+# CONSTANTS THAT DON'T CHANGE
 # ---------------------------------------------------------------------------
 LANE_WIDTH = 110
 SHOULDER_WIDTH = 55
@@ -97,10 +99,10 @@ FREEZE_FRAMES = 2 * FPS
 # WINDOW SIZE - fixed once, sized for the BIGGEST possible race
 # ---------------------------------------------------------------------------
 # Pygame Zero reads WIDTH once, when the window is created, and can't change
-# it afterward. So we size the window for MAX_RIVALS lanes, even though most
-# races will use fewer. A race with fewer rivals just uses a narrower road,
+# it afterward. So we size the window for MAX_RACERS lanes, even though most
+# races will use fewer. A race with fewer racers just uses a narrower road,
 # centered in the same window, with extra grass on each side.
-_MAX_LANE_COUNT = MAX_RIVALS + 1
+_MAX_LANE_COUNT = MAX_RACERS
 _MAX_ROAD_WIDTH = LANE_WIDTH * _MAX_LANE_COUNT
 GRASS_MARGIN = 200
 WIDTH = _MAX_ROAD_WIDTH + 2 * SHOULDER_WIDTH + 2 * GRASS_MARGIN
@@ -110,10 +112,13 @@ CENTER = WIDTH // 2
 # ---------------------------------------------------------------------------
 # THE MASTER TRACK
 # ---------------------------------------------------------------------------
-# One long course. "Short"/"Medium"/"Long" just stop the race at different
-# points along it (see LENGTH_OPTIONS above) - they all share the same
-# curves, so a short race is simply "the first part of the long race."
-TRACK = [
+# ONE_LAP is a single 3900m loop that starts and ends at CENTER, so copies of
+# it can be placed back to back with no seam - `ONE_LAP * 4` is just Python
+# repeating the list 4 times, giving a 15,600m course that's really just
+# "the same lap, four times." "Short"/"Medium"/"Long" (see LENGTH_OPTIONS
+# above) simply stop the race after 1, 2, or 4 of those laps - they all
+# share the same curves, so no length option ever runs out of track early.
+ONE_LAP = [
     (300, CENTER),
     (300, CENTER - 150),
     (250, CENTER - 150),
@@ -128,6 +133,7 @@ TRACK = [
     (350, CENTER + 150),
     (350, CENTER),
 ]
+TRACK = ONE_LAP * 4
 
 # --- Colours -----------------------------------------------------------------
 GRASS = (40, 120, 55)
@@ -138,12 +144,13 @@ LINE = (240, 240, 240)
 # ---------------------------------------------------------------------------
 # GAME STATE
 # ---------------------------------------------------------------------------
-# NUM_RIVALS, LANE_COUNT, ROAD_WIDTH, FINISH_DISTANCE, and DIFFICULTY_RANGE
+# NUM_RACERS, LANE_COUNT, ROAD_WIDTH, FINISH_DISTANCE, and DIFFICULTY_RANGE
 # used to be constants that never changed. Now they're just the CURRENTLY
 # APPLIED settings, and `_apply_menu_choices()` (below) is the one place
 # that ever changes them, right when a race is about to start.
-NUM_RIVALS = num_rivals
-LANE_COUNT = NUM_RIVALS + 1
+NUM_RACERS = num_racers
+LANE_COUNT = NUM_RACERS      # total cars IS the lane count - it already
+                              # includes the player
 ROAD_WIDTH = LANE_WIDTH * LANE_COUNT
 FINISH_DISTANCE = LENGTH_OPTIONS[length_index][1]
 DIFFICULTY_RANGE = DIFFICULTY_OPTIONS[difficulty_index][1]
@@ -151,12 +158,13 @@ DIFFICULTY_RANGE = DIFFICULTY_OPTIONS[difficulty_index][1]
 player = Actor(CAR_CHOICES[car_index], (WIDTH // 2, PLAYER_ROW))
 player_speed = 0.0
 distance_traveled = 0.0
-rivals = []
+racers = []
 game_state = "waiting"          # "waiting"|"countdown"|"racing"|"frozen"|"won"
 race_results = []
 player_place = None
 countdown_timer = 0
 freeze_timer = 0
+player_start_lane = 0.0          # the player's lane on the starting grid
 
 
 def _segment_at(dist):
@@ -219,9 +227,9 @@ def _apply_menu_choices():
     """Copy the menu's current selections into the actual game settings.
     This only runs once, right when SPACE is pressed on the menu - the game
     settings stay fixed for the whole race after that."""
-    global NUM_RIVALS, LANE_COUNT, ROAD_WIDTH, FINISH_DISTANCE, DIFFICULTY_RANGE
-    NUM_RIVALS = num_rivals
-    LANE_COUNT = NUM_RIVALS + 1
+    global NUM_RACERS, LANE_COUNT, ROAD_WIDTH, FINISH_DISTANCE, DIFFICULTY_RANGE
+    NUM_RACERS = num_racers
+    LANE_COUNT = NUM_RACERS
     ROAD_WIDTH = LANE_WIDTH * LANE_COUNT
     FINISH_DISTANCE = LENGTH_OPTIONS[length_index][1]
     DIFFICULTY_RANGE = DIFFICULTY_OPTIONS[difficulty_index][1]
@@ -230,9 +238,9 @@ def _apply_menu_choices():
 
 def new_race():
     """Set up a fresh starting grid using whatever settings are CURRENTLY
-    applied (NUM_RIVALS / ROAD_WIDTH / etc). Ends in "waiting" so players
+    applied (NUM_RACERS / ROAD_WIDTH / etc). Ends in "waiting" so players
     can adjust the menu again before the next race, too."""
-    global player_speed, distance_traveled, rivals, game_state
+    global player_speed, distance_traveled, racers, game_state, player_start_lane
     global race_results, player_place
     player_speed = 0.0
     distance_traveled = 0.0
@@ -242,21 +250,27 @@ def new_race():
 
     grid = list(range(LANE_COUNT))
     random.shuffle(grid)
-    player_lane = (grid[0] + 0.5) / LANE_COUNT
-    player.pos = (lane_to_x(player_lane, PLAYER_ROW), PLAYER_ROW)
+    player_start_lane = (grid[0] + 0.5) / LANE_COUNT
+    player.pos = (lane_to_x(player_start_lane, PLAYER_ROW), PLAYER_ROW)
 
-    rivals = [
+    # random.sample() picks distinct colors, unlike calling random.choice()
+    # once per racer - so no two racers end up looking the same, and none
+    # of them match the player's own car either.
+    available_colors = [c for c in CAR_CHOICES if c != CAR_CHOICES[car_index]]
+    racer_colors = random.sample(available_colors, k=len(grid) - 1)
+    racers = [
         {
-            "actor": Actor(random.choice(
-                [c for c in CAR_CHOICES if c != CAR_CHOICES[car_index]])),
+            "actor": Actor(color),
             "distance": 0,
             "lane": (lane_i + 0.5) / LANE_COUNT,
             "base_speed": random.uniform(*DIFFICULTY_RANGE),
             "finished": False,
+            "state": "racing",       # "racing" | "frozen" - mirrors the player's own
+            "freeze_timer": 0,
         }
-        for lane_i in grid[1:]
+        for lane_i, color in zip(grid[1:], racer_colors)
     ]
-    for r in rivals:
+    for r in racers:
         r["actor"].pos = (lane_to_x(r["lane"], PLAYER_ROW), PLAYER_ROW)
 
 
@@ -267,7 +281,7 @@ new_race()
 # on_key_down - fires ONCE per keypress, not every frame it's held
 # ---------------------------------------------------------------------------
 def on_key_down(key):
-    global selected_field, num_rivals, car_index, length_index, difficulty_index
+    global selected_field, num_racers, car_index, length_index, difficulty_index
     global game_state, countdown_timer
 
     if game_state != "waiting":
@@ -282,22 +296,22 @@ def on_key_down(key):
         field = MENU_FIELDS[selected_field]
         if field == "Car":
             car_index = (car_index + direction) % len(CAR_CHOICES)
-        elif field == "Rivals":
-            num_rivals = max(1, min(MAX_RIVALS, num_rivals + direction))
+        elif field == "Racers":
+            num_racers = max(1, min(MAX_RACERS, num_racers + direction))
         elif field == "Length":
             length_index = (length_index + direction) % len(LENGTH_OPTIONS)
         elif field == "Difficulty":
             difficulty_index = (difficulty_index + direction) % len(DIFFICULTY_OPTIONS)
         # Apply the change immediately and rebuild the starting grid, so the
         # cars lined up behind the menu always match what the menu currently
-        # says - change "Rivals" from 3 to 5 and you'll see 2 more cars
+        # says - change "Racers" from 4 to 6 and you'll see 2 more cars
         # appear on the grid right away, without needing to start the race
         # first.
         _apply_menu_choices()
         new_race()
     elif key == keys.SPACE:
-        _apply_menu_choices()
-        new_race()                      # make sure the grid matches, then go
+        # Starts the race with whatever grid is already on screen - every
+        # LEFT/RIGHT edit already rebuilt it to match the current menu settings.
         game_state = "countdown"
         countdown_timer = COUNTDOWN_FRAMES
 
@@ -334,8 +348,10 @@ def draw():
             color = "white" if (i // 20) % 2 == 0 else "black"
             screen.draw.filled_rect(Rect(left + i, finish_y - 8, 20, 16), color)
 
-    for r in rivals:
-        r["actor"].draw()
+    for r in racers:
+        # Blink a frozen racer too, the same way the player blinks below.
+        if r["state"] != "frozen" or (r["freeze_timer"] // 6) % 2 == 0:
+            r["actor"].draw()
     if game_state != "frozen" or (freeze_timer // 6) % 2 == 0:
         player.draw()
 
@@ -369,7 +385,7 @@ def _draw_menu():
 
     values = [
         CAR_CHOICES[car_index].replace("car_", "").title(),
-        str(num_rivals),
+        str(num_racers),
         LENGTH_OPTIONS[length_index][0],
         DIFFICULTY_OPTIONS[difficulty_index][0],
     ]
@@ -459,20 +475,46 @@ def update():
         player_speed = max(0.0, min(MAX_SPEED, player_speed))
         distance_traveled += player_speed
 
-    for r in rivals:
-        r["distance"] += r["base_speed"]
-        y = row_at(r["distance"])
-        r["actor"].pos = (lane_to_x(r["lane"], y), y)
-        if not r["finished"] and r["distance"] >= FINISH_DISTANCE:
-            r["finished"] = True
-            race_results.append(r)
+    # A racer that's frozen itself (because it just collided with you) sits
+    # out its own timer instead of moving - exactly the same shape as the
+    # player's own "frozen" handling above.
+    for r in racers:
+        if r["state"] == "frozen":
+            r["freeze_timer"] -= 1
+            if r["freeze_timer"] <= 0:
+                r["state"] = "racing"
+        # Not "elif" - a racer that JUST switched back to "racing" above
+        # still needs its position updated this same frame. Otherwise it
+        # would stay drawn at its old, overlapping spot for one more frame
+        # and immediately collide with you again the instant you both wake
+        # up, freezing you both forever.
+        if r["state"] == "racing":
+            r["distance"] += r["base_speed"]
+            y = row_at(r["distance"])
+            r["actor"].pos = (lane_to_x(r["lane"], y), y)
+            if not r["finished"] and r["distance"] >= FINISH_DISTANCE:
+                r["finished"] = True
+                race_results.append(r)
 
     if game_state == "racing":
-        for r in rivals:
+        # A crash freezes you instead of ending the run - and now freezes
+        # the racer you hit too, for the same length of time.
+        for r in racers:
             if player.colliderect(r["actor"]):
                 game_state = "frozen"
                 freeze_timer = FREEZE_FRAMES
                 player_speed = 0.0
+                r["state"] = "frozen"
+                r["freeze_timer"] = FREEZE_FRAMES
+                # Snap both cars back to their own starting-grid lane.
+                # Every car got a different lane on the grid, so this is
+                # guaranteed to separate them - unlike knocking the racer
+                # back in distance, which leaves both cars in the same
+                # lane and lets the player drift straight back into the
+                # racer the instant they unfreeze, re-triggering the
+                # freeze over and over.
+                player.x = lane_to_x(player_start_lane, PLAYER_ROW)
+                r["actor"].x = lane_to_x(r["lane"], row_at(r["distance"]))
                 break
 
         if distance_traveled >= FINISH_DISTANCE:

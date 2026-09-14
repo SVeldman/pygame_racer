@@ -1,24 +1,103 @@
-"""Week 4, Part 2 - A real, multi-turn lap. This is the finished game!
+# Week 4, Part 2 Walkthrough — A Real, Multi-Turn Lap
 
-WHAT'S NEW SINCE PART 1
--------------------------
-Nothing mechanically - every idea in this file already exists in Part 1.
-The only change is `TRACK` itself: instead of three segments (a demo), we
-describe a full lap with turns spread across the WHOLE race, not just
-clustered near the start.
+Nothing mechanically new this session — every idea already exists in Part 1.
+The only thing that changes is the data in `TRACK` itself: instead of three
+segments (a demo), we describe a full lap with turns spread across the
+*whole* race instead of clustered near the start. This is deliberately a
+light, short session by design — save the extra time for review, or for a
+head start on Week 5.
 
-This is deliberately a great place to encourage experimentation: `TRACK` is
-just a list of (length, center) pairs, so lengthening a straight, sharpening
-a curve, or adding a whole new bend is just editing data - no new code
-required. Try it!
 
-Run it with (from inside the `project` folder):
-    pip install pgzero
-    pgzrun 08_week4_part2.py
-"""
+## Step 1: One More Rival
 
+Just for fun, let's bump the rival count and add a fourth color to choose from:
+```python
+NUM_RIVALS = 4
+```
+```python
+RIVAL_COLORS = ["car_blue", "car_green", "car_yellow", "car_orange"]
+```
+
+Run it and there's a fourth rival on the grid, but the track is still Part
+1's tiny 3-segment demo curve — `TRACK` itself hasn't changed yet. This is
+a good moment to point out that bumping `NUM_RIVALS` needed no other code
+changes anywhere (`LANE_COUNT`, `ROAD_WIDTH`, `WIDTH`, and the starting grid
+all recompute themselves) — the exact same "just data" idea Step 2 is about
+to apply to `TRACK` itself.
+
+
+## Step 2: Replace the Demo Track With a Full Lap
+
+Replace the entire `TRACK` list:
+
+```python
+# ---------------------------------------------------------------------------
+# THE TRACK - a full lap
+# ---------------------------------------------------------------------------
+CENTER = WIDTH // 2
+TRACK = [
+    (300, CENTER),          # starting straight
+    (300, CENTER - 150),    # curve left
+    (250, CENTER - 150),    # brief straight, holding left
+    (350, CENTER + 160),    # sweeping curve right
+    (250, CENTER + 160),    # brief straight, holding right
+    (300, CENTER),          # curve back to the middle
+    (250, CENTER - 120),    # curve left
+    (350, CENTER + 120),    # curve right
+    (300, CENTER),          # curve back to centre
+    (300, CENTER - 140),    # curve left
+    (250, CENTER - 140),    # brief straight, holding left
+    (350, CENTER + 150),    # sweeping curve right
+    (350, CENTER),          # curve back to centre for the finish
+]
+FINISH_DISTANCE = sum(length for length, _ in TRACK)
+```
+
+Now, short straights connect a series of curves in alternating directions, so
+there's a turn to react to every few hundred metres for the whole race -
+nothing like Part 1's single demo curve. Read this top to bottom and
+you're reading the shape of the track: start straight, sweep left, hold
+left briefly, sweep hard right, hold right briefly, curve back to centre,
+curve left, curve right, and settle at centre for the finish.
+
+**Nothing else in the file changes.** `_segment_at()`, `center_x_at_distance()`,
+`is_turn_at()`, and `road_center_x()` all work exactly as they did with the
+3-segment demo — a list of `(length, center)` pairs is a list of `(length,
+center)` pairs, whether it has 3 entries or 13. `FINISH_DISTANCE` recomputes
+itself from whatever `TRACK` currently contains, so it's always correct
+without anyone needing to update it by hand.
+
+**Running the game now shows a full lap** — a real, twisting course with a
+turn to react to every few hundred metres, and all four rivals tracking it
+automatically, exactly as before.
+
+
+## Suggested In-Class Exercise: Design Your Own Track
+
+With the time this session leaves free, have students design their own
+`TRACK` for the last 10-15 minutes — a hairpin-heavy course, a mostly
+straight course with one dramatic sweep, whatever they like. Since
+`FINISH_DISTANCE` is derived from `TRACK`'s own total length, this is
+completely safe to hand to students without them needing to touch any other
+constant — lengthening a straight, sharpening a turn, or adding a whole new
+bend is purely a data change.
+
+**Watch for:** a `TRACK` with very few segments but very large `center`
+swings between them can produce sharper, more sudden-feeling curves than a
+gentle multi-segment sweep — a good excuse to talk about *why* the current
+track uses several smaller steps for each direction change instead of one
+giant jump.
+
+
+## Checkpoint: Final Code for Week 4, Part 2
+
+The full script should now match `04_week4_part2.py` — the finished, playable
+game from the end of the core curriculum.
+
+```python
 import random
 
+### CONSTANTS
 NUM_RIVALS = 4
 LANE_COUNT = NUM_RIVALS + 1
 LANE_WIDTH = 110
@@ -36,7 +115,7 @@ ROUGH_BRAKE = 0.40
 DASH_PERIOD = 60
 DASH_LENGTH = 30
 
-RIVAL_COLORS = ["car_blue", "car_green", "car_yellow"]
+RIVAL_COLORS = ["car_blue", "car_green", "car_yellow", "car_orange"]
 
 GRASS_MARGIN = 200
 WIDTH = ROAD_WIDTH + 2 * SHOULDER_WIDTH + 2 * GRASS_MARGIN
@@ -47,41 +126,32 @@ COUNTDOWN_NUMBERS = [3, 2, 1]
 COUNTDOWN_FRAMES = len(COUNTDOWN_NUMBERS) * FPS + FPS // 3
 FREEZE_FRAMES = 2 * FPS
 
-# ---------------------------------------------------------------------------
-# THE TRACK - a full lap
-# ---------------------------------------------------------------------------
-# Short straights connect a series of curves in alternating directions, so
-# there's a turn to react to every few hundred metres for the whole race -
-# nothing like Part 1's single demo curve. Read this top to bottom and
-# you're reading the shape of the track: start straight, sweep left, hold
-# left briefly, sweep hard right, hold right briefly, curve back to centre,
-# curve left, curve right, and settle at centre for the finish.
+### TRACK
 CENTER = WIDTH // 2
 TRACK = [
-    (300, CENTER),          # starting straight
-    (300, CENTER - 150),    # curve left
-    (250, CENTER - 150),    # brief straight, holding left
-    (350, CENTER + 160),    # sweeping curve right
-    (250, CENTER + 160),    # brief straight, holding right
-    (300, CENTER),          # curve back to the middle
-    (250, CENTER - 120),    # curve left
-    (350, CENTER + 120),    # curve right
-    (300, CENTER),          # curve back to centre for the finish
+    (300, CENTER),
+    (300, CENTER - 150),
+    (250, CENTER - 150),
+    (350, CENTER + 160),
+    (250, CENTER + 160),
+    (300, CENTER),
+    (250, CENTER - 120),
+    (350, CENTER + 120),
+    (300, CENTER),
+    (300, CENTER - 140),
+    (250, CENTER - 140),
+    (350, CENTER + 150),
+    (350, CENTER),
 ]
-# Setting FINISH_DISTANCE to the track's own total length (instead of some
-# unrelated big number) guarantees turns are happening for the ENTIRE race -
-# there's no leftover straight stretch after the described curves run out.
 FINISH_DISTANCE = sum(length for length, _ in TRACK)
 
-# --- Colours -----------------------------------------------------------------
+### COLOURS
 GRASS = (40, 120, 55)
 GRAVEL = (150, 140, 110)
 TARMAC = (60, 60, 68)
 LINE = (240, 240, 240)
 
-# ---------------------------------------------------------------------------
-# GAME STATE
-# ---------------------------------------------------------------------------
+### GAME STATE
 player = Actor("car_red", (WIDTH // 2, PLAYER_ROW))
 player_speed = 0.0
 distance_traveled = 0.0
@@ -91,8 +161,10 @@ race_results = []
 player_place = None
 countdown_timer = 0
 freeze_timer = 0
+player_start_lane = 0.0
 
 
+### TRACK MATH
 def _segment_at(dist):
     start_center = CENTER
     covered = 0
@@ -123,6 +195,7 @@ def row_at(dist):
     return PLAYER_ROW - (dist - distance_traveled)
 
 
+### ROAD
 def road_center_x(y):
     return center_x_at_distance(dist_at(y))
 
@@ -149,8 +222,9 @@ def lane_to_x(lane, y):
     return road_left(y) + lane * ROAD_WIDTH
 
 
+### RACE SETUP
 def new_race():
-    global player_speed, distance_traveled, rivals, game_state
+    global player_speed, distance_traveled, rivals, game_state, player_start_lane
     global race_results, player_place
     player_speed = 0.0
     distance_traveled = 0.0
@@ -160,18 +234,21 @@ def new_race():
 
     grid = list(range(LANE_COUNT))
     random.shuffle(grid)
-    player_lane = (grid[0] + 0.5) / LANE_COUNT
-    player.pos = (lane_to_x(player_lane, PLAYER_ROW), PLAYER_ROW)
+    player_start_lane = (grid[0] + 0.5) / LANE_COUNT
+    player.pos = (lane_to_x(player_start_lane, PLAYER_ROW), PLAYER_ROW)
 
+    rival_colors = random.sample(RIVAL_COLORS, k=len(grid) - 1)
     rivals = [
         {
-            "actor": Actor(random.choice(RIVAL_COLORS)),
+            "actor": Actor(color),
             "distance": 0,
             "lane": (lane_i + 0.5) / LANE_COUNT,
             "base_speed": random.uniform(5.0, 8.5),
             "finished": False,
+            "state": "racing",
+            "freeze_timer": 0,
         }
-        for lane_i in grid[1:]
+        for lane_i, color in zip(grid[1:], rival_colors)
     ]
     for r in rivals:
         r["actor"].pos = (lane_to_x(r["lane"], PLAYER_ROW), PLAYER_ROW)
@@ -180,6 +257,7 @@ def new_race():
 new_race()
 
 
+### DRAW
 def draw():
     screen.fill(GRASS)
 
@@ -213,7 +291,8 @@ def draw():
             screen.draw.filled_rect(Rect(left + i, finish_y - 8, 20, 16), color)
 
     for r in rivals:
-        r["actor"].draw()
+        if r["state"] != "frozen" or (r["freeze_timer"] // 6) % 2 == 0:
+            r["actor"].draw()
     if game_state != "frozen" or (freeze_timer // 6) % 2 == 0:
         player.draw()
 
@@ -263,6 +342,7 @@ def _banner(title, subtitle):
                      fontsize=30, color="white")
 
 
+### UPDATE
 def update():
     global player_speed, distance_traveled, game_state, player_place
     global countdown_timer, freeze_timer
@@ -313,12 +393,17 @@ def update():
         distance_traveled += player_speed
 
     for r in rivals:
-        r["distance"] += r["base_speed"]
-        y = row_at(r["distance"])
-        r["actor"].pos = (lane_to_x(r["lane"], y), y)
-        if not r["finished"] and r["distance"] >= FINISH_DISTANCE:
-            r["finished"] = True
-            race_results.append(r)
+        if r["state"] == "frozen":
+            r["freeze_timer"] -= 1
+            if r["freeze_timer"] <= 0:
+                r["state"] = "racing"
+        if r["state"] == "racing":
+            r["distance"] += r["base_speed"]
+            y = row_at(r["distance"])
+            r["actor"].pos = (lane_to_x(r["lane"], y), y)
+            if not r["finished"] and r["distance"] >= FINISH_DISTANCE:
+                r["finished"] = True
+                race_results.append(r)
 
     if game_state == "racing":
         for r in rivals:
@@ -326,8 +411,13 @@ def update():
                 game_state = "frozen"
                 freeze_timer = FREEZE_FRAMES
                 player_speed = 0.0
+                r["state"] = "frozen"
+                r["freeze_timer"] = FREEZE_FRAMES
+                player.x = lane_to_x(player_start_lane, PLAYER_ROW)
+                r["actor"].x = lane_to_x(r["lane"], row_at(r["distance"]))
                 break
 
         if distance_traveled >= FINISH_DISTANCE:
             player_place = len(race_results) + 1
             game_state = "won"
+```

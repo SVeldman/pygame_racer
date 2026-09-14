@@ -27,7 +27,7 @@ to the NEXT one?" - see the big comment inside update() below.
 
 Run it with (from inside the `project` folder):
     pip install pgzero
-    pgzrun 06_week3_part2.py
+    pgzrun 03_week3_part2.py
 """
 
 import random
@@ -49,7 +49,7 @@ ROUGH_BRAKE = 0.40
 DASH_PERIOD = 60
 DASH_LENGTH = 30
 
-FINISH_DISTANCE = 3000
+FINISH_DISTANCE = 3900         # matches the "one lap" length used everywhere else
 RIVAL_COLORS = ["car_blue", "car_green", "car_yellow"]
 
 GRASS_MARGIN = 200
@@ -85,6 +85,7 @@ race_results = []
 player_place = None
 countdown_timer = 0             # frames left in the "countdown" state
 freeze_timer = 0                 # frames left in the "frozen" state
+player_start_lane = 0.0          # the player's lane on the starting grid
 
 
 def road_center_x(y):
@@ -125,7 +126,7 @@ def new_race():
     """Reset to a fresh starting grid. Note this ends in "waiting", not
     "racing" - pressing SPACE from here is what kicks off the countdown."""
     global player_speed, distance_traveled, rivals, game_state
-    global race_results, player_place
+    global race_results, player_place, player_start_lane
     player_speed = 0.0
     distance_traveled = 0.0
     game_state = "waiting"
@@ -134,18 +135,23 @@ def new_race():
 
     grid = list(range(LANE_COUNT))
     random.shuffle(grid)
-    player_lane = (grid[0] + 0.5) / LANE_COUNT
-    player.pos = (lane_to_x(player_lane, PLAYER_ROW), PLAYER_ROW)
+    player_start_lane = (grid[0] + 0.5) / LANE_COUNT
+    player.pos = (lane_to_x(player_start_lane, PLAYER_ROW), PLAYER_ROW)
 
+    # random.sample() picks distinct colors, unlike calling random.choice()
+    # once per rival - so no two rivals end up looking the same.
+    rival_colors = random.sample(RIVAL_COLORS, k=len(grid) - 1)
     rivals = [
         {
-            "actor": Actor(random.choice(RIVAL_COLORS)),
+            "actor": Actor(color),
             "distance": 0,
             "lane": (lane_i + 0.5) / LANE_COUNT,
             "base_speed": random.uniform(5.0, 8.5),
             "finished": False,
+            "state": "racing",       # "racing" | "frozen" - mirrors the player's own
+            "freeze_timer": 0,
         }
-        for lane_i in grid[1:]
+        for lane_i, color in zip(grid[1:], rival_colors)
     ]
     for r in rivals:
         r["actor"].pos = (lane_to_x(r["lane"], PLAYER_ROW), PLAYER_ROW)
@@ -187,7 +193,9 @@ def draw():
             screen.draw.filled_rect(Rect(left + i, finish_y - 8, 20, 16), color)
 
     for r in rivals:
-        r["actor"].draw()
+        # Blink a frozen rival too, the same way the player blinks below.
+        if r["state"] != "frozen" or (r["freeze_timer"] // 6) % 2 == 0:
+            r["actor"].draw()
 
     # Blink the player's car during "frozen" instead of drawing it solid -
     # dividing the timer by 6 and checking even/odd toggles roughly 5 times
@@ -302,24 +310,49 @@ def update():
         distance_traveled += player_speed
 
     # Rivals keep racing whether you're "racing" or "frozen" - this is what
-    # makes freezing a real penalty instead of a free pause.
+    # makes freezing a real penalty instead of a free pause. A rival that's
+    # frozen itself (because it just collided with you) sits out its own
+    # timer instead of moving - exactly the same shape as the player's own
+    # "frozen" handling above.
     for r in rivals:
-        r["distance"] += r["base_speed"]
-        y = row_at(r["distance"])
-        r["actor"].pos = (lane_to_x(r["lane"], y), y)
-        if not r["finished"] and r["distance"] >= FINISH_DISTANCE:
-            r["finished"] = True
-            race_results.append(r)
+        if r["state"] == "frozen":
+            r["freeze_timer"] -= 1
+            if r["freeze_timer"] <= 0:
+                r["state"] = "racing"
+        # Not "elif" - a rival that JUST switched back to "racing" above
+        # still needs its position updated this same frame. Otherwise it
+        # would stay drawn at its old, overlapping spot for one more frame
+        # and immediately collide with you again the instant you both wake
+        # up, freezing you both forever.
+        if r["state"] == "racing":
+            r["distance"] += r["base_speed"]
+            y = row_at(r["distance"])
+            r["actor"].pos = (lane_to_x(r["lane"], y), y)
+            if not r["finished"] and r["distance"] >= FINISH_DISTANCE:
+                r["finished"] = True
+                race_results.append(r)
 
     if game_state == "racing":
-        # A crash freezes you instead of ending the run. `break` after the
-        # first hit stops us from freezing twice in the same frame if
+        # A crash freezes you instead of ending the run - and now freezes
+        # the rival you hit too, for the same length of time. `break` after
+        # the first hit stops us from freezing twice in the same frame if
         # you're somehow touching two rivals at once.
         for r in rivals:
             if player.colliderect(r["actor"]):
                 game_state = "frozen"
                 freeze_timer = FREEZE_FRAMES
                 player_speed = 0.0
+                r["state"] = "frozen"
+                r["freeze_timer"] = FREEZE_FRAMES
+                # Snap both cars back to their own starting-grid lane.
+                # Every car got a different lane on the grid, so this is
+                # guaranteed to separate them - unlike knocking the rival
+                # back in distance, which leaves both cars in the same
+                # lane and lets the player drift straight back into the
+                # rival the instant they unfreeze, re-triggering the
+                # freeze over and over.
+                player.x = lane_to_x(player_start_lane, PLAYER_ROW)
+                r["actor"].x = lane_to_x(r["lane"], row_at(r["distance"]))
                 break
 
         if distance_traveled >= FINISH_DISTANCE:

@@ -34,11 +34,11 @@ into each other, as a challenge once this makes sense!
 
 Run it with (from inside the `project` folder):
     pip install pgzero
-    pgzrun 10_week5_split_screen.py
+    pgzrun 05_week5_split_screen.py
 """
 
 # ---------------------------------------------------------------------------
-# TUNING "KNOBS"
+# CONSTANTS
 # ---------------------------------------------------------------------------
 LANE_WIDTH = 110
 ROAD_WIDTH = LANE_WIDTH * 2      # just enough room for two cars to pass
@@ -86,6 +86,10 @@ TRACK = [
     (250, CENTER - 120),
     (350, CENTER + 120),
     (300, CENTER),
+    (300, CENTER - 140),
+    (250, CENTER - 140),
+    (350, CENTER + 150),
+    (350, CENTER),
 ]
 FINISH_DISTANCE = sum(length for length, _ in TRACK)
 

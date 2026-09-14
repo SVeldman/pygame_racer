@@ -1,8 +1,8 @@
-"""Week 2, Part 1 - Speed, and the difference between road, shoulder, and rough.
+"""Week 1, Part 2 - Speed, and the difference between road, shoulder, and rough.
 
-WHAT'S NEW SINCE WEEK 1
+WHAT'S NEW SINCE PART 1
 -------------------------
-Week 1 ended with a car that snaps left and right with no consequences. Now
+Part 1 ended with a car that snaps left and right with no consequences. Now
 we add:
   * `player_speed`, a number that goes up automatically while you're on the
     tarmac, capped at `MAX_SPEED`
@@ -11,21 +11,21 @@ we add:
     that) - straying off the tarmac costs you speed, and straying further
     costs you more
 
-The car still doesn't move up the screen (no scrolling yet - that's Part 2's
-job). For now, "speed" is just a number you can watch climb and fall on the
-HUD as you drift on and off the road. This lays the groundwork Part 2 needs:
-once we HAVE a speed number, we can use it to scroll the road.
+The car still doesn't move up the screen (no scrolling yet - that's next
+week's job). For now, "speed" is just a number you can watch climb and fall
+on the HUD as you drift on and off the road. This lays the groundwork Week 2
+needs: once we HAVE a speed number, we can use it to scroll the road.
 
 Run it with (from inside the `project` folder):
     pip install pgzero
-    pgzrun 03_week2_part1.py
+    pgzrun 01_week1_part2.py
 """
 
 WIDTH = 800
 HEIGHT = 600
 
 # ---------------------------------------------------------------------------
-# TUNING "KNOBS"
+# CONSTANTS
 # ---------------------------------------------------------------------------
 # Think of every constant below as a dial you could turn. Try changing a few
 # of these numbers and re-running the game to see what happens - that's the
@@ -116,7 +116,7 @@ def draw():
 
     player.draw()
 
-    # --- HUD (heads-up display) ---
+    # --- NEW PART: HUD (heads-up display) ---
     # screen.draw.text draws text directly onto the window. We show the
     # current speed at all times, and only show a warning when the car has
     # left the tarmac - and a DIFFERENT warning depending on how far off it
@@ -135,14 +135,14 @@ def draw():
 def update():
     global player_speed
 
-    # Steering hasn't changed from Week 1.
+    # Steering hasn't changed from Part 1.
     if keyboard.left:
         player.x -= 5
     if keyboard.right:
         player.x += 5
     player.x = max(20, min(WIDTH - 20, player.x))
 
-    # --- THE NEW PART: three-tier speed ---
+    # --- NEW PART: three-tier speed ---
     # Every frame, we check which of the three zones the car is in right
     # now, and nudge player_speed toward that zone's speed limit:
     #   * on the road: speed climbs by ACCEL, up to MAX_SPEED

@@ -4,10 +4,10 @@
 
 ```bash
 cd project
-pgzrun 07_week4_part1.py       # or 08_week4_part2.py
+pgzrun 04_week4_part1.py       # or 04_week4_part2.py
 ```
 
-## Part 1 — `07_week4_part1.py`: The road curves
+## Part 1 — `04_week4_part1.py`: The road curves
 
 **Goal for students:** see the road bend, and watch every rival follow the
 bend automatically.
@@ -36,11 +36,11 @@ the road will hold its last curve's center steady for the remainder, which
 looks like a bug but is actually `_segment_at()`'s documented "past the end"
 fallback.
 
-## Part 2 — `08_week4_part2.py`: A real lap
+## Part 2 — `04_week4_part2.py`: A real lap
 
 **Goal for students:** the finished game - a full, multi-turn course.
 
-Nothing new mechanically. `TRACK` grows from 3 segments to 9, describing a
+Nothing new mechanically. `TRACK` grows from 3 segments to 13, describing a
 lap with turns spread across the whole distance instead of clustered at the
 start. This is a great "make it your own" moment: `TRACK` is just data, so
 lengthening a straight, sharpening a turn, or adding a whole new bend needs
