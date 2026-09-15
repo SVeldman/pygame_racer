@@ -337,7 +337,9 @@ def update():
             player_place = len(race_results) + 1
             game_state = "won"
 ```
-
+*Expected State: the game runs exactly as it did at the end of Week 4 — a
+plain "READY TO RACE?" screen, a fixed rival count, one fixed-length race.
+Nothing here is new yet.*
 
 ## Step 1: The Menu's Data
 
@@ -384,12 +386,14 @@ num_racers = 4            # 1..MAX_RACERS, including the player
 length_index = 1          # index into LENGTH_OPTIONS (starts on "Medium")
 difficulty_index = 1      # index into DIFFICULTY_OPTIONS (starts on "Normal")
 ```
+*Expected State: no visible change — this data doesn't drive anything on
+screen yet.*
 
-**Why "Racers" means the total, not just the AI count:** `num_racers = 4`
-means 4 cars total on the grid — you plus 3 AI opponents, not you plus 4.
-This choice ripples through the whole file: `LANE_COUNT` (Step 2) becomes
-`NUM_RACERS` directly, not `NUM_RACERS + 1` the way `LANE_COUNT = NUM_RIVALS
-+ 1` worked in earlier weeks — the player is already counted.
+**Teaching Note:** `num_racers = 4` means 4 cars total on the grid — you
+plus 3 AI opponents, not you plus 4. That convention ripples through the
+file: `LANE_COUNT` (Step 4) becomes `NUM_RACERS` directly, not `NUM_RACERS +
+1` the way `LANE_COUNT = NUM_RIVALS + 1` worked in earlier weeks. The player
+is already counted.
 
 ## Step 2: A Fixed Window, Sized for the Biggest Race
 
@@ -429,14 +433,22 @@ WIDTH = _MAX_ROAD_WIDTH + 2 * SHOULDER_WIDTH + 2 * GRASS_MARGIN
 HEIGHT = 600
 CENTER = WIDTH // 2
 ```
+*Expected State: no visible change, and don't try to run the file in this
+state — `LANE_COUNT` and `ROAD_WIDTH` are both gone until Step 4 puts them
+back under new names.*
 
-**The engineering constraint worth explaining, not glossing over:** the
-window's actual pixel size never changes once pgzero creates it. Every
-earlier week's `WIDTH` formula used the *current* `NUM_RIVALS` because that
-number never changed after the file loaded. Here, the menu lets students
-change the racer count *live* — so `WIDTH` has to be sized for the largest
-possible choice (`MAX_RACERS`) up front, and a race with fewer racers just
-leaves extra grass showing on the sides of that same fixed window.
+**Teaching Note:** the window's actual pixel size never changes once pgzero
+creates it. Every earlier week's `WIDTH` formula used the current
+`NUM_RIVALS`, which never changed after the file loaded. Here the menu lets
+students change the racer count live, so `WIDTH` has to be sized for the
+largest possible choice (`MAX_RACERS`) up front. A race with fewer racers
+just leaves extra grass showing on the sides of that same fixed window.
+
+**Classroom Prompt (For Fast Finishers):** ask early finishers what would
+happen if `_MAX_LANE_COUNT` used `num_racers` (the current menu selection)
+instead of `MAX_RACERS` (the ceiling) — would the window resize when a
+player picked more racers mid-game? (No — `WIDTH` is only ever read once,
+at startup; changing it afterward does nothing to the actual window.)
 
 ## Step 3: The Master Track
 
@@ -469,14 +481,21 @@ ONE_LAP = [
 ]
 TRACK = ONE_LAP * 4
 ```
+*Expected State: no visible change — `TRACK` still describes the same
+course, just built differently, and it isn't wired up to `FINISH_DISTANCE`
+again until Step 4.*
 
-**Math note — why `ONE_LAP * 4` works seamlessly:** Python's `*` on a list
-repeats it — `[1, 2] * 3` is `[1, 2, 1, 2, 1, 2]`. This only produces a
-smooth track because `ONE_LAP` was deliberately designed to start AND end at
-`CENTER` — so segment 13 (the end of lap one) hands off to segment 14 (the
-start of lap two) at the exact same centre position, with no jump. `Short`
-(one lap) stops the race after `3900` of this `15,600`-long `TRACK`; `Long`
-uses the whole thing.
+**Math Concept:** Python's `*` on a list repeats it — `[1, 2] * 3` is `[1,
+2, 1, 2, 1, 2]`. That only produces a smooth track because `ONE_LAP` is
+deliberately designed to start and end at `CENTER`, so segment 13 (the end
+of lap one) hands off to segment 14 (the start of lap two) at the exact same
+center position, with no jump. `Short` stops the race after `3900` of this
+`15,600`-long `TRACK`; `Long` uses the whole thing.
+
+**Classroom Demo:** temporarily change `TRACK = ONE_LAP * 4` to `TRACK =
+ONE_LAP` and run a race set to "Long." It behaves exactly like "Short,"
+since there's only one lap's worth of track to cover no matter what
+`FINISH_DISTANCE` says. Restore the `* 4` afterward.
 
 ## Step 4: "Currently Applied" Settings vs. Menu Selections
 
@@ -508,13 +527,16 @@ countdown_timer = 0
 freeze_timer = 0
 player_start_lane = 0.0          # the player's lane on the starting grid
 ```
+*Expected State: no visible change — and the file is runnable again from
+here: every global Steps 2 and 3 removed now exists again, just computed
+from the menu's current selections instead of fixed constants.*
 
-**The idea worth sitting with:** `num_racers` (the menu's *current
-selection*) and `NUM_RACERS` (the *applied* setting the race is actually
-using) are two different variables, on purpose. Changing the menu selection
-shouldn't retroactively resize a race that's already running — `Step 6`'s
-`_apply_menu_choices()` is the one and only place that ever copies a
-selection into its applied counterpart.
+**Teaching Note:** `num_racers` (the menu's current selection) and
+`NUM_RACERS` (the applied setting the race is actually using) are two
+different variables, on purpose. Changing the menu selection shouldn't
+retroactively resize a race that's already running — the
+`_apply_menu_choices()` function below is the one and only place that ever
+copies a selection into its applied counterpart.
 
 Add this function, right after `lane_to_x()`:
 ```python
@@ -531,10 +553,10 @@ def _apply_menu_choices():
     player.image = CAR_CHOICES[car_index]
 ```
 
-**A brand-new trick:** `player.image = CAR_CHOICES[car_index]` reassigns an
-`Actor`'s sprite *after* it's already been created — the same `player`
-object just starts drawing a different picture. Nothing before this week
-ever needed to change a car's look mid-game.
+**The Concept:** `player.image = CAR_CHOICES[car_index]` reassigns an
+`Actor`'s sprite after it's already been created — the same `player` object
+just starts drawing a different picture. Nothing before this week ever
+needed to change a car's look mid-game.
 
 ## Step 5: Update `new_race()`
 
@@ -576,11 +598,20 @@ def new_race():
     for r in racers:
         r["actor"].pos = (lane_to_x(r["lane"], PLAYER_ROW), PLAYER_ROW)
 ```
+*Expected State: no visible change on its own, but this is the last piece
+the Mid-Session Checkpoint below needs — run the full script after this
+step and the race works end-to-end again.*
 
-Only two things changed from Week 4's version: `LANE_COUNT` already includes
-the player (no `+ 1` anywhere), and the list of possible AI racer colors
-first excludes whatever color the player picked — so nobody ever ends up
-racing a clone of their own car.
+**Teaching Note:** only two things changed from Week 4's version.
+`LANE_COUNT` already includes the player, so there's no `+ 1` anywhere. And
+the list of possible AI racer colors excludes whatever color the player
+picked first, so nobody ends up racing a clone of their own car.
+
+**Classroom Demo:** comment out the `if c != CAR_CHOICES[car_index]` filter
+in `available_colors` and run a few races with the player set to a common
+color. Occasionally an AI racer spawns in the exact same color, and it's
+much harder to tell the cars apart on screen. Restore the filter and the
+collision disappears.
 
 ## Mid-Session Checkpoint: The Menu's Data Model Works, Nobody Can Touch It Yet
 
@@ -959,13 +990,14 @@ def update():
             player_place = len(race_results) + 1
             game_state = "won"
 ```
-
-Run it and the race itself already works end-to-end with the new menu data
-model underneath — but there's still no menu on screen, and no way to
-change any setting. The old plain "READY TO RACE?" text and the old
+*Expected State: the race runs end-to-end again with the new menu data
+model underneath, but there's still no menu on screen and no way to change
+any setting — the old plain "READY TO RACE?" text and the old
 SPACE-to-start handling in `update()` are both still doing their Week 4 job
-untouched. Steps 6-8 are what make the menu actually visible and
-interactive; nothing about the race itself changes again after this point.
+untouched.*
+
+Steps 6-8 make the menu actually visible and interactive. Nothing about the
+race itself changes again after this point.
 
 ## Step 6: `on_key_down` — a Different Tool for a Different Job
 
@@ -1010,25 +1042,33 @@ def on_key_down(key):
         game_state = "countdown"
         countdown_timer = COUNTDOWN_FRAMES
 ```
+*Expected State: no menu text on screen yet — still the plain "READY TO
+RACE?" banner — but press the arrow keys anyway: the cars lined up on the
+starting grid already change (a different count, different colors) even
+though nothing on screen explains why. LEFT/RIGHT/UP/DOWN are already fully
+wired; they just have nothing to show for it until Step 7.*
 
-**The idea to put on the board:** `keyboard.left` (used everywhere else in
-this project) is `True` for every frame a key is held — perfect for
-continuous movement, but terrible for a menu, since it would fly through
-options 60 times a second. `on_key_down(key)` is a third special function
-pgzero will call for you, alongside `draw()` and `update()` — but it only
-fires *once*, exactly when a key is first pressed down, no matter how long
-it's then held. That's exactly what a menu needs: press LEFT once, move to
-the previous choice once.
+**Teaching Note:** `keyboard.left` (used everywhere else in this project)
+is `True` for every frame a key is held — perfect for continuous movement,
+but it would fly through menu options 60 times a second if used here.
+`on_key_down(key)` is a third special function pgzero calls for you,
+alongside `draw()` and `update()`, but it fires exactly once, when a key is
+first pressed, no matter how long it's then held. That's what a menu needs:
+press LEFT once, move to the previous choice once. The `if game_state !=
+"waiting": return` guard at the top keeps this function inert everywhere
+except the menu screen — every other game state treats a keypress here as a
+no-op.
 
-Point out the `if game_state != "waiting": return` line at the top — the
-menu should only ever respond to input on the menu screen, so every other
-state is a no-op here.
+**Teaching Note:** `_apply_menu_choices()` and `new_race()` run on every
+LEFT/RIGHT, not just on SPACE. Skip that and the starting grid behind the
+menu goes stale — set "Racers" to 6 and the grid would still show the old 4
+cars until the race actually started. Rebuilding immediately keeps what's
+on screen honest about what's about to happen.
 
-**Why `_apply_menu_choices()` and `new_race()` run on every LEFT/RIGHT, not
-just on SPACE:** without this, the starting grid shown behind the menu would
-be stale — you could set "Racers" to 6 but still see the 4-car grid from
-before until the race actually started. Rebuilding immediately keeps what's
-on screen honest about what will actually happen.
+**Classroom Demo:** have a student hold LEFT down on the "Racers" field
+instead of tapping it. It moves exactly one step and stops — contrast with
+`keyboard.left` driving the car, which keeps moving for as long as the key
+is down.
 
 ## Step 7: Draw the Menu
 
@@ -1065,13 +1105,21 @@ def _draw_menu():
     screen.draw.text("UP/DOWN choose a setting, LEFT/RIGHT change it, SPACE to start",
                      center=(WIDTH // 2, line_y + 10), fontsize=22, color="white")
 ```
+*Expected State: a real menu box appears on the "waiting" screen —
+Car / Racers / Length / Difficulty, with the selected field highlighted in
+yellow and flanked by `<`/`>`. Arrow keys already worked (Step 6); now you
+can see what they're doing.*
 
-**Why `CAR_CHOICES[car_index].replace("car_", "").title()`:** the raw value
-`"car_blue"` is a filename, not something you'd want to show a player.
-`.replace("car_", "")` strips the prefix down to `"blue"`, and `.title()`
-capitalizes it to `"Blue"` — a small string-manipulation chain worth reading
-right to left: start with the raw string, strip a prefix, then fix
-capitalization.
+**The Concept:** the raw value `"car_blue"` is a filename, not something to
+show a player. `.replace("car_", "")` strips the prefix down to `"blue"`,
+and `.title()` capitalizes it to `"Blue"`. Read the chain right to left:
+start with the raw string, strip the prefix, then fix capitalization.
+
+**Classroom Prompt (For Fast Finishers):** what would `.replace("car_",
+"")` do to a hypothetical filename that didn't start with `"car_"` — say,
+`"taxi_yellow"`? (Nothing — it returns the string unchanged, since there's
+no `"car_"` to strip. Worth knowing before anyone adds a car that breaks
+the naming convention.)
 
 ## Step 8: `update()` Barely Has to Change
 
@@ -1083,6 +1131,15 @@ The only change to `update()` is at the very top — replace the old
     if game_state == "waiting":
         return
 ```
+*Expected State: no visible change from Step 7 — SPACE on the menu still
+starts the countdown, but now `on_key_down()` (Step 6) is what makes that
+happen; `update()` no longer listens for anything while the menu is open.*
+
+**Teaching Note:** moving "waiting" out of `update()` and into
+`on_key_down()` isn't just tidying up. `update()` no longer needs to know
+anything about single-keypress events at all. The `draw()`/`update()` split
+from Week 1 now has a third partner: `on_key_down()` owns "this happened
+once," `update()` still owns "this happens continuously."
 
 Everything else in `update()` — countdown, racing, frozen, won — is
 unchanged from Week 4.
@@ -1506,10 +1563,14 @@ def update():
             player_place = len(race_results) + 1
             game_state = "won"
 ```
+*Expected State: a complete settings menu on the waiting screen that
+live-updates the starting grid as you change it, then launches into the
+same countdown/race/finish flow from Weeks 3-4 — matching
+`05_week5_part1_menu.py` exactly.*
 
-**Watch for:** every other field (`Car`, `Length`, `Difficulty`) wraps
-around with `%` when you push past an end — LEFT past the first car choice
-lands you on the last one. `Racers` is the odd one out: it's clamped with
-`max(1, min(MAX_RACERS, ...))`, so pushing LEFT at `1` or RIGHT at
-`MAX_RACERS` just stops instead of wrapping. Worth calling out explicitly so
-students don't assume all four fields behave identically.
+**Watch for:** `Car`, `Length`, and `Difficulty` all wrap around with `%`
+when you push past an end — LEFT past the first car choice lands you on the
+last one. `Racers` is the odd one out: it's clamped with `max(1,
+min(MAX_RACERS, ...))`, so pushing LEFT at `1` or RIGHT at `MAX_RACERS` just
+stops instead of wrapping. Flag it explicitly — students will otherwise
+assume all four fields behave the same way.

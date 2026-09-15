@@ -1,14 +1,13 @@
 # Week 1, Part 2 Walkthrough — Speed, and Three Zones
 
-Starting from the end of Part 1, this part adds `player_speed`, a number 
-that climbs on the tarmac and falls off it — and gives the shoulder and 
-the rough grass their own, different rules.
+Starting from the end of Part 1, this part adds `player_speed` — a number
+that climbs on the tarmac and falls off it — and gives the shoulder and the
+rough grass their own rules.
 
-**Nothing moves up the screen yet.** That's on purpose, as "speed" is
-introduced first as just a number to watch on the HUD before it's asked to do
-anything as dramatic as scrolling the whole road. Week 2 is where this
-number starts driving something real.
-
+**Nothing moves up the screen yet.** That's intentional: speed is
+introduced first as a number to watch on the HUD, before it's asked to
+scroll the road. Week 2 is where this number starts driving something
+real.
 
 ## Step 1: Add the New Tuning Knobs
 
@@ -25,17 +24,18 @@ BRAKE = 0.30                            # how much speed drops each frame off-ro
 ```python
 player_speed = 0.0
 ```
+*Expected State: no visible change — these are just numbers sitting in
+memory, the same as when `racer.py` had nothing but constants back in
+Part 1.*
 
-**Why fractions, not fixed numbers?** `SHOULDER_MAX_SPEED` and
-`ROUGH_MAX_SPEED` are written as `MAX_SPEED * 0.7` and `MAX_SPEED * 0.4`
-instead of just `7` and `4`. That means if you later change `MAX_SPEED` to
-`20`, both speed caps scale with it automatically — they always mean "70% of
-top speed" and "40% of top speed," not two numbers that happen to currently
-be `7` and `4`. This is worth a quick "try it" moment: change `MAX_SPEED` and
-re-run, and both caps move with it.
+**The Concept:** `SHOULDER_MAX_SPEED` and `ROUGH_MAX_SPEED` are written as
+`MAX_SPEED * 0.7` and `MAX_SPEED * 0.4`, not as `7` and `4`. Change
+`MAX_SPEED` later and both caps scale with it automatically — they always
+mean "70% of top speed" and "40% of top speed," not two numbers that
+happen to currently equal `7` and `4`.
 
-**Running the game now shows no visible change** — these are just numbers
-sitting in memory, same as when `racer.py` only had constants back in Part 1.
+**Classroom Demo:** change `MAX_SPEED` and re-run. Both derived caps move
+with it, with no other edits needed.
 
 ## Step 2: Teach the Game About the Three Zones
 
@@ -54,19 +54,24 @@ def on_shoulder(x, row):
         return False
     return road_left(row) - SHOULDER_WIDTH <= x <= road_right(row) + SHOULDER_WIDTH
 ```
+*Expected State: no visible change — these functions exist, but nothing
+calls them yet.*
 
-**Why two functions instead of one:** there are really three possible
-answers to "where is the car?" — on the road, on the shoulder, or out in the
-rough. `on_road()` answers the first question directly. `on_shoulder()`
-answers the second by first ruling out the road (`if on_road(x, row): return
-False`), then checking a *wider* range that extends `SHOULDER_WIDTH` past
-each edge of the tarmac. Whatever's left over — not on the road, and not on
-the shoulder — is, by elimination, the rough. There's no `on_rough()`
-function because we never need to ask that question directly; `update()`
-just uses `else` for it (see Step 3).
+**Teaching Note — why two functions, not one?** There are three possible
+answers to "where is the car?": on the road, on the shoulder, or out in
+the rough. `on_road()` answers the first question directly. `on_shoulder()`
+answers the second by first ruling out the road (`if on_road(x, row):
+return False`), then checking a *wider* range that extends
+`SHOULDER_WIDTH` past each edge of the tarmac. Whatever's left over — not
+on the road, not on the shoulder — is the rough, by elimination. There's
+no `on_rough()` function, because nothing ever needs to ask that question
+directly; `update()` just uses `else` for it (Step 3).
 
-**Still no visible change when you run it** — same reason as Step 1, just
-one level up: these functions exist but nothing calls them yet.
+**Classroom Prompt (For Fast Finishers):** have them write the
+`on_rough(x, row)` function that's conspicuously missing, as a standalone
+exercise. It should return `True` exactly when both `on_road()` and
+`on_shoulder()` return `False` — a direct check against the `else` branch
+`update()` uses instead.
 
 ## Step 3: Give Each Zone Its Own Speed Rule
 
@@ -86,35 +91,37 @@ code:
 
     player_speed = max(0.0, min(MAX_SPEED, player_speed))
 ```
+*Expected State: still no visible change — `player_speed` is climbing and
+falling in memory, but nothing on screen shows it yet.*
 
-You'll also need to add `global player_speed` to the top of `update()`,
-since this is the first time `update()` *changes* a variable defined outside
-itself (`player.x` isn't affected by this — `player` is an `Actor` object,
-and we're changing an *attribute* of it, not reassigning `player` itself;
-`player_speed` is a plain number, and reassigning a plain number from inside
-a function needs `global`).
+You'll also need to add `global player_speed` to the top of `update()`.
 
-**Math note — three doors, one clamp:** this is an `if` / `elif` / `else` —
-exactly one of the three branches runs each frame, based on which zone the
-car is currently in:
-- **Road:** speed climbs by `ACCEL`, but the `if player_speed < MAX_SPEED`
-  guard stops it from climbing forever past the ceiling.
+**Teaching Note:** this is the first time `update()` changes a variable
+defined outside itself. `player.x` isn't affected by this rule — `player`
+is an `Actor` object, and changing `player.x` changes an *attribute* of
+it, not `player` itself. `player_speed` is a plain number, and reassigning
+a plain number from inside a function needs `global`.
+
+**Math Concept — three doors, one clamp:** this is an `if` / `elif` /
+`else` — exactly one of the three branches runs each frame, based on
+which zone the car is in right now.
+- **Road:** speed climbs by `ACCEL`, but `if player_speed < MAX_SPEED`
+  stops it climbing past the ceiling.
 - **Shoulder:** speed falls by `BRAKE`, but only while it's still above
-  `SHOULDER_MAX_SPEED` — once it reaches that ceiling, this branch stops
-  changing it at all (it doesn't fall further, and it doesn't climb back up
-  either, while still on the shoulder).
-- **Rough:** the same idea, but with a *lower* ceiling (`ROUGH_MAX_SPEED`),
-  so straying further off the road costs more.
+  `SHOULDER_MAX_SPEED` — once it hits that ceiling, this branch stops
+  changing speed at all.
+- **Rough:** the same idea, with a *lower* ceiling (`ROUGH_MAX_SPEED`), so
+  straying further off the road costs more.
 
 The final `player_speed = max(0.0, min(MAX_SPEED, player_speed))` line is
-the same clamp pattern from Part 1's `player.x`, just applied to speed
-instead of position — a safety net making sure repeated `+= ACCEL` or `-=
-BRAKE` calls can never push `player_speed` outside `0` to `MAX_SPEED`, even
-if one of those steps overshoots a boundary slightly.
+the same clamp pattern from Part 1's `player.x`, applied to speed instead
+of position — a safety net that keeps repeated `+= ACCEL` or `-= BRAKE`
+calls from pushing `player_speed` outside `0` to `MAX_SPEED`, even if a
+single step overshoots a boundary.
 
-**Because this whole check re-runs every single frame**, there's no
-"penalty timer" — steer back onto the road and you start climbing toward
-`MAX_SPEED` again immediately, from wherever your speed currently is.
+This check re-runs every single frame, so there's no "penalty timer" —
+steer back onto the road and speed starts climbing toward `MAX_SPEED`
+again immediately, from wherever it currently sits.
 
 ## Mid-Session Checkpoint: Speed Is Real, but Invisible
 
@@ -222,13 +229,13 @@ def update():
 
     player_speed = max(0.0, min(MAX_SPEED, player_speed))
 ```
+*Expected State: the car still just drives around a plain road, exactly
+like the end of Part 1. `player_speed` is climbing and falling in memory
+exactly the way it should — nothing on screen shows it yet.*
 
-Run it now and nothing *looks* different from Part 1 — the car still just
-drives around a plain road. `player_speed` is climbing and falling in memory
-exactly the way it should, but nothing on screen shows it yet. That's
-deliberate: the mechanic and its display are two separate jobs, and this is
-the moment the mechanic itself is done. The rest of this part is just making
-it visible.
+That's deliberate: the mechanic and its display are two separate jobs, and
+this is the moment the mechanic itself is done. The rest of this part is
+just making it visible.
 
 ## Step 4: Show the Speed on the HUD
 
@@ -244,14 +251,23 @@ Add this to the bottom of `draw()`, after `player.draw()`:
         screen.draw.text("ON THE ROUGH!", midtop=(WIDTH // 2, 10),
                          fontsize=34, color=(255, 90, 60))
 ```
+*Expected State: a speed readout in the top-left corner, plus a warning
+banner across the top of the screen when the car drifts onto the shoulder
+or into the rough.*
 
-**Why check `on_shoulder()` first:** if the car is off the road at all,
-there are two possibilities — shoulder, or rough. Checking `on_shoulder()`
-first and `on_road()` second (with `elif`) is a deliberate order: "off the
-road, AND off the shoulder too" is exactly what `elif not on_road(...)`
-catches, so by the time that line runs we already know we're not looking at
-the shoulder case. Swap the order and you'd need an extra check to avoid
-misclassifying the shoulder as the rough.
+**Teaching Note:** if the car is off the road at all, there are two
+possibilities — shoulder, or rough. Checking `on_shoulder()` first and
+`on_road()` second (with `elif`) is deliberate: "off the road, and off the
+shoulder too" is exactly what `elif not on_road(...)` catches, so by the
+time that line runs the shoulder case is already ruled out. Swap the
+order and an extra check would be needed to avoid misclassifying the
+shoulder as the rough.
+
+**Classroom Demo:** swap the branch order — check `not on_road(...)`
+first and `on_shoulder(...)` second — and drive onto the shoulder. The
+banner now reads "ON THE ROUGH!" even though the car never left the
+shoulder, because `not on_road(...)` is already `True` there and the `if`
+claims it before `on_shoulder()` ever gets checked.
 
 ## Checkpoint: Final Code for Week 1, Part 2
 
@@ -365,9 +381,12 @@ def update():
 
     player_speed = max(0.0, min(MAX_SPEED, player_speed))
 ```
+*Expected State: a car that drives left and right, gains speed on the
+tarmac, loses it on the shoulder or in the rough, and shows both the
+speed number and a zone warning on the HUD. It still doesn't move up the
+screen.*
 
-**Watch for:** the car still doesn't move up the screen — some students
-expect "speed" to already mean forward motion. It's worth being explicit:
-this speed number doesn't drive anything yet. That's exactly what Week 2
-adds — the same `player_speed` you built here becomes the thing that scrolls
-the road.
+**Watch for:** some students expect "speed" to already mean forward
+motion, since the car still doesn't move up the screen. This speed number
+doesn't drive anything yet — Week 2 takes the same `player_speed` built
+here and uses it to scroll the road.

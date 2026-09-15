@@ -1,61 +1,44 @@
-# Week 4 — Instructor Overview
+# Week 4 Overview: Bending the Track
 
-## Run it
+Welcome to Week 4! This week features a massive mechanical payoff: we are finally introducing curves to our road. 
 
-```bash
-cd project
-pgzrun 04_week4_part1.py       # or 04_week4_part2.py
-```
+The key concept for this week is a MASSIVE payoff that we set up in week 1. We are going to completely redefine how the entire game landscape behaves by changing exactly *one* function. Every single non-player object on screen (the tarmac, the shoulders, the dashed center line, and all AI rivals) will automatically conform to the new bending geometry without us touching their underlying code.
 
-## Part 1 — `04_week4_part1.py`: The road curves
+This illustrates a valuable lesson to developing coders - the concept of *extensibility*. When we say that "good code is extensible" we mean that it can be built upon and expanded as the project grows, without massive rewrites or *refactors*. It is worth taking the time this week to emphasize this concept, as the students will get to see for themselves just how powerful it is.
 
-**Goal for students:** see the road bend, and watch every rival follow the
-bend automatically.
+---
 
-| Concept | Where it shows up |
-|---|---|
-| Replacing a constant answer with a computed one | `road_center_x()` now calls `center_x_at_distance()` |
-| A list of segments, each with its own "target" | `TRACK` |
-| Walking a list to find "which segment am I in?" | `_segment_at()` |
-| Linear interpolation ("80% of the way from A to B") | `start + (end - start) * fraction` |
-| A derived boolean from data | `is_turn_at()` |
+## Part 1: The Road Curves (`04_week4_part1.py`)
 
-**The idea to put on the board, and the whole point of this lesson:**
-`road_left`, `road_right`, `on_road`, `on_shoulder`, and every rival's
-position all go through `road_center_x()` - and NONE of them changed this
-week. Only `road_center_x()`'s own implementation changed, from
-`return WIDTH // 2` to reading `TRACK`. This is the payoff for insisting on
-that one function all the way back in Week 1 - have students scroll through
-the diff (or just count: one function body changed) to see it for
-themselves.
+**The Student Goal:** Make the straight vertical road bend dynamically to the left and right, and watch every rival car follow the curve automatically.
 
-**Watch for:** `FINISH_DISTANCE = sum(length for length, _ in TRACK)` is
-worth calling out explicitly - it guarantees the described curves cover the
-*entire* race. If a student's custom `TRACK` is shorter than `FINISH_DISTANCE`,
-the road will hold its last curve's center steady for the remainder, which
-looks like a bug but is actually `_segment_at()`'s documented "past the end"
-fallback.
+This session introduces linear interpolation (Lerp), which is conceptually the hardest single idea in the entire curriculum. We shift from a static highway center to reading a list of sequential segments, calculating exactly where the player is on the track, and smoothly transitioning the road's X-coordinate between a start point and an endpoint. The walkthrough gives you some pointers on breaking down the math, but don't dwell on it. As in previous weeks, getting the students to wrap their heads around the high-level idea is what really matters, as it will help them appreciate just how much goes into building even a relatively simple game.
 
-## Part 2 — `04_week4_part2.py`: A real lap
+### Key Themes to Track:
+* **The Week 1 Payoff:** Have the students look back at the `road_center_x()` function we insisted on writing all the way back in Week 1. Show them that `road_left`, `road_right`, `on_road()`, and the rival placement math *all* rely on this function—and none of those components are changing this week. We are simply updating the inside of `road_center_x()` from returning a static `WIDTH // 2` to reading a track data layout. Hopefully this is a massive "aha!" moment when they see it come together.
+* **The Track Array:** We introduce a `TRACK` list that holds track segments, where each segment has its own length and target curvature. The engine walks this list to figure out which segment the player is currently driving through and blends the coordinates smoothly.
+* **Classroom Delivery:** The interpolation math (`start + (end - start) * fraction`) can look intimidating on a screen. Don't let the raw math stall your pacing. Keep the focus on the high-level concept: we are telling the computer to look at how far along a segment a car is (e.g., *"80% of the way through this turn"*), and shift the pixels accordingly. 
 
-**Goal for students:** the finished game - a full, multi-turn course.
+---
 
-Nothing new mechanically. `TRACK` grows from 3 segments to 13, describing a
-lap with turns spread across the whole distance instead of clustered at the
-start. This is a great "make it your own" moment: `TRACK` is just data, so
-lengthening a straight, sharpening a turn, or adding a whole new bend needs
-no new code.
+## Part 2: A Real Lap (`04_week4_part2.py`)
 
-**Suggested in-class exercise:** have students design their OWN `TRACK` in
-the last 10-15 minutes - a hairpin-heavy course, a mostly-straight course
-with one dramatic sweep, whatever they like. Since `FINISH_DISTANCE` is
-derived from `TRACK`'s own length, this is safe to hand to students without
-them needing to touch any other constant.
+**The Student Goal:** Build out a complete, multi-turn racetrack layout and customize the course design to make it their own.
 
-## Pacing
+From a programming standpoint, there are zero new mechanics introduced in this session. The `TRACK` data structure simply grows from a basic 3-segment test pattern into a robust, 13-segment racing circuit with sweeping turns and long straightaways. It is ok to move through this quickly - ideally students have ample time at the end of class to experiment building their own custom tracks.
 
-Part 1 (~25-30 min) is the conceptually hardest single idea in the whole
-curriculum (real interpolation math) - give it room, and don't rush into
-Part 2's track design just to "finish the syllabus." Part 2 itself is light
-(~10-15 min) by design, leaving slack in this week for review or a head
-start on Week 5.
+### Key Themes to Track:
+* **Data-Driven Design:** Because the entire racetrack is generated cleanly out of data rather than hardcoded logic, changing the track layout requires absolutely no new code. Lengthening a straightaway, sharpening a curve, or inventing an entirely new path is done purely by updating the numbers inside the `TRACK` list.
+* **The Automatic Finish Line:** `FINISH_DISTANCE = sum(length for length, _ in TRACK)` automatically totals up the length of their custom track segments. This means the finish line will always dynamically place itself at the exact end of the course, no matter how much they modify the map.
+* **Sandbox Time:** Try to leave at least the last 15 minutes of class for a design exercise. Challenge the students to architect their own custom raceway. Some might build a punishing, curvey nightmare-track; others might build a high-speed drag strip with one massive sweep. This should be a rewarding creative outlet where they get to test-drive their own game design.
+
+---
+
+## Pacing & Classroom Flow
+
+Because of the conceptual weight of the interpolation math in Part 1, the time split leans heavily toward the front half of the session:
+* **Part 1 (Curve Math & Segments):** ~25 to 30 minutes (give this room to breathe, do not rush it).
+* **Part 2 (Track Customization Sandbox):** ~10 to 15 minutes of light adjustments and playtesting.
+* **Open Buffer:** ~15 minutes.
+
+**Note on Timing:** Week 4 is intentionally designed with significant slack. If your class spent extra time wrapping their heads around the lists of dictionaries or state machines from Week 3, there is ample time to catch up. Also, the core curriculum ends here. Week 5 is an ambitious "bonus week" with challenges for the advanced students. Even if you take all 5 weeks to get to the end of Week 4, the class will have accomplished *a lot*. You can always print out the walkthroughs for Week 5 and send them home for students to work through on their own time.

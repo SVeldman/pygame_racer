@@ -542,7 +542,9 @@ def update():
     if all(player["finished"] for player in players):
         game_state = "won"
 ```
-
+*Expected State: the same two-band split-screen race as the end of Part 2 —
+both players driving, AI racers holding fixed lanes for the whole race, and
+player-vs-racer collisions already working.*
 
 ## Step 1: New Tuning Knobs
 
@@ -559,12 +561,14 @@ LANE_EASE_SPEED = 0.02           # fraction of the road crossed per frame
 RIVAL_COLLISION_DISTANCE = 80    # "same spot" = within roughly a car length
 RIVAL_CRASH_CHANCE = 0.25        # otherwise they swerve to avoid it
 ```
+*Expected State: no visible change — these are just new constants, nothing
+reads them yet.*
 
-**Why a random range (`MIN_HOLD` to `MAX_HOLD`) instead of one fixed
-duration:** if every racer changed lanes on exactly the same schedule, they'd
-all drift in lockstep, which looks robotic. Picking a random hold time
-between 2 and 5 seconds for *each* racer, independently, is what makes their
-lane changes feel staggered and natural instead of synchronized.
+**Teaching Note:** a random range instead of one fixed hold time keeps the
+racers out of lockstep. If every racer switched lanes on exactly the same
+schedule, the whole field would drift together and read as robotic. Drawing
+an independent random hold time (2 to 5 seconds) for each racer is what makes
+the lane changes look staggered instead of synchronized.
 
 ## Step 2: Give Each Racer a Target to Ease Toward
 
@@ -588,12 +592,16 @@ In `_new_grid()`, add two new fields to each racer dictionary:
         for lane_i, color in zip(ai_lanes, racer_colors)
     ]
 ```
+*Expected State: no visible change — every racer still just sits in its
+starting lane, same as before.*
 
-**Why both `"lane"` AND `"target_lane"`:** `"lane"` is where the racer
-*currently* is (what every drawing/collision function already reads).
-`"target_lane"` is where it's *heading*. Starting them equal means a racer
-begins the race not mid-lane-change — it'll hold its starting lane for its
-first `lane_change_timer` countdown before picking a new target.
+**The Concept:** `"lane"` and `"target_lane"` split "where a racer is" from
+"where it's heading." Everything that already reads a racer's position —
+drawing, the player-vs-racer collision check — keeps reading `"lane"`,
+unchanged. `"target_lane"` only matters to the easing logic added in Step 3.
+Starting the two equal means a racer begins the race mid-hold, not
+mid-lane-change: it sits still for one full `lane_change_timer` countdown
+before its first move.
 
 ## Step 3: Easing Toward a Moving Target
 
@@ -615,22 +623,21 @@ lane-change logic (still inside that same `if`):
             elif r["lane"] > r["target_lane"]:
                 r["lane"] = max(r["target_lane"], r["lane"] - LANE_EASE_SPEED)
 ```
+*Expected State: every AI racer now drifts smoothly between lanes over the
+course of the race, instead of holding one lane the whole time.*
 
-**Math note — "ease toward a target" is a pattern, not a formula to
-memorize.** Every frame: if we're below the target, nudge up by a small
-fixed step (`LANE_EASE_SPEED`); if above, nudge down. The `min(...)` /
-`max(...)` calls are the important detail — they stop the nudge from
-*overshooting* the target. Without them, a racer whose `lane` is `0.39` and
-whose `target_lane` is `0.40` would jump straight past it to `0.41` on a
-frame where `LANE_EASE_SPEED` is bigger than the remaining gap, and then
-oscillate back and forth around the target forever instead of settling
-exactly onto it. `min(target, lane + step)` guarantees the result never
-exceeds the target when approaching from below; `max(target, lane - step)`
-does the same approaching from above.
+**Math Concept:** "ease toward a target" nudges a value a fixed amount per
+frame — it doesn't jump straight to the destination.
+- Below the target: nudge up by `LANE_EASE_SPEED`.
+- Above the target: nudge down by the same amount.
+- `min(target, lane + step)` and `max(target, lane - step)` stop the nudge
+  from overshooting. Without them, a racer at `lane = 0.39` easing toward
+  `target_lane = 0.40` could jump past it to `0.41` and oscillate around the
+  target forever instead of settling on it.
 
-**Notice this is the exact same shape as `player_speed` climbing toward
-`MAX_SPEED` back in Week 1** — a value nudged a fixed amount per frame
-toward a ceiling. The only difference is the ceiling itself can now move.
+This is the same shape as `player_speed` climbing toward `MAX_SPEED` back in
+Week 1 — a value nudged toward a ceiling, one step per frame. The only thing
+that changed is the ceiling can now move.
 
 ## Mid-Session Checkpoint: Racers Drift Between Lanes, but Never Meet
 
@@ -1185,13 +1192,13 @@ def update():
     if all(player["finished"] for player in players):
         game_state = "won"
 ```
+*Expected State: every AI racer visibly drifts between lanes over time. Two
+racers can end up sharing a lane and overlapping — nothing happens when they
+do, since `check_racer_collisions()` doesn't exist until Step 4.*
 
-Run it and every AI racer now visibly drifts between lanes over time — the
-core visual payoff of this session. Two racers CAN end up in the same lane
-at the same spot at this point, and nothing happens; `check_racer_collisions()`
-(Step 4, below) doesn't exist yet, so this snapshot deliberately doesn't call
-it. Lane-changing and rival-vs-rival crashes are genuinely separate
-mechanics — this checkpoint is the natural seam between them.
+Lane-changing and rival-vs-rival crashes are genuinely separate mechanics.
+This checkpoint sits right at the seam between them: the drift is fully
+working before collisions between racers enter the picture at all.
 
 ## Step 4: Racers Noticing Each Other
 
@@ -1230,45 +1237,48 @@ def check_racer_collisions():
                     r1["lane_change_timer"] = 0
                     r2["lane_change_timer"] = 0
 ```
+*Expected State: no visible change yet — `check_racer_collisions()` exists
+but nothing calls it.*
 
-**Why compare `lane` and `distance` directly, instead of screen positions:**
-a racer's screen position depends on *which player's band* is looking at it
-— that's the whole point of Part 2's projection trick. But two racers either
-occupy the same real spot on the track or they don't, independent of anyone
-watching. Comparing their `lane` and `distance` values directly (not
-anything derived from `row_at()` or `lane_to_x()`) is comparing them in the
-one space where the question actually makes sense.
+**Teaching Note:** a racer's screen position depends on which player's band
+is looking at it — that's Part 2's whole projection trick. But two racers
+either occupy the same real spot on the track or they don't, independent of
+who's watching. Comparing `lane` and `distance` directly — not anything
+derived from `row_at()` or `lane_to_x()` — checks them in the one space
+where "did they meet" actually means something.
 
-**Math note — why `racing[i + 1:]`, not `racing` again:** this is a classic
-"compare every pair without repeating or self-comparing" pattern. A plain
-nested `for r1 in racing: for r2 in racing:` would compare every racer to
-itself (always "the same spot," which is meaningless) and would check every
-pair *twice* (once as `(r1, r2)`, once again as `(r2, r1)`). Starting the
-inner loop from `racing[i + 1:]` — everything *after* `r1` in the list —
-guarantees each pair is considered exactly once, and never a racer against
-itself.
+**Math Concept:** two details make this pairwise check work.
+- `racing[i + 1:]` — everything *after* `r1` in the list — is the standard
+  "compare every pair once" pattern. A plain `for r1 in racing: for r2 in
+  racing:` would compare every racer to itself (always "the same spot,"
+  meaningless) and check every pair twice, once as `(r1, r2)` and again as
+  `(r2, r1)`.
+- `lane_gap = 0.5 / LANE_COUNT` is half a lane's width, expressed as a
+  fraction of the whole road (`1 / LANE_COUNT`). That threshold gets
+  tighter automatically on a wider-laned road and looser on a narrower one
+  — no magic number like `0.05` to retune if `LANE_COUNT` changes.
 
-**Why `lane_gap = 0.5 / LANE_COUNT`, not some fixed number like `0.05`:** the
-"width" of a single lane, as a fraction of the whole road, is `1 / LANE_COUNT`
-— so half of that (`0.5 / LANE_COUNT`) is a sensible "close enough to call it
-the same lane" threshold, one that automatically gets tighter on a
-wider-laned road and looser on a narrower one, instead of a magic number
-that would need retuning if `LANE_COUNT` ever changed.
+**Teaching Note:** a collision here isn't automatic. `random.random() <
+RIVAL_CRASH_CHANCE` rolls a fresh number between `0.0` and `1.0` every time
+two racers meet, and only crashes if it lands below `0.25`. The other 75% of
+the time, both racers abandon their current lane change instead —
+`lane_change_timer = 0` forces `update_racers()` to pick a fresh target next
+frame — and swerve away. The 25% figure is a judgment call, not a law of
+physics.
 
-**The design decision worth discussing:** a collision here isn't automatic —
-`random.random() < RIVAL_CRASH_CHANCE` rolls a fresh number between `0.0` and
-`1.0` every time two racers meet, and only crashes if it lands below `0.25`.
-75% of the time, both racers instead abandon their current lane change
-(`lane_change_timer = 0` forces `update_racers()` to pick a fresh target next
-frame) and swerve away instead. This is a judgment call, not a law of
-physics — try changing `RIVAL_CRASH_CHANCE` to `1.0` or `0.0` and see how
-differently the race feels.
+**Classroom Demo:** set `RIVAL_CRASH_CHANCE` to `1.0` or `0.0` and rerun. At
+`1.0` every rival meeting ends in a pile-up; at `0.0` racers always thread
+past each other. Neither extreme is "correct" — it's a knob for how chaotic
+the race should feel.
 
-Now that `check_racer_collisions()` exists, add one line at the very end of
-`update_racers()`, after its loop, to actually call it:
+Now that `check_racer_collisions()` exists, wire it in. Add one line at the
+very end of `update_racers()`, after its loop:
 ```python
     check_racer_collisions()
 ```
+This is what actually turns the check above into visible behavior — two
+racers sharing a lane can now crash or swerve instead of quietly
+overlapping.
 
 ## Checkpoint: Final Code for Week 5, Part 3
 
@@ -1849,9 +1859,12 @@ def update():
     if all(player["finished"] for player in players):
         game_state = "won"
 ```
+*Expected State: AI racers drift between lanes over time, and can crash into
+(or swerve around) each other using the same freeze/blink mechanic a
+player-vs-racer crash already had.*
 
 **Watch for:** the collision check only compares two *actively moving*
 racers to each other — a racer that's mid-lane-change can still drive
 straight through one that's already frozen and stopped. Rear-ending a
-stopped car isn't handled; that's a great "extend this yourself" prompt for
+stopped car isn't handled; that's a good "extend this yourself" prompt for
 strong students who finish early.

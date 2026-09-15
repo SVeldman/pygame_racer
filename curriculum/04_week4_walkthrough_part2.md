@@ -3,27 +3,27 @@
 Nothing mechanically new this session — every idea already exists in Part 1.
 The only thing that changes is the data in `TRACK` itself: instead of three
 segments (a demo), we describe a full lap with turns spread across the
-*whole* race instead of clustered near the start. This is deliberately a
-light, short session by design — save the extra time for review, or for a
-head start on Week 5.
+*whole* race instead of clustered near the start. This is a short, light
+session — use the extra time for review, or a head start on Week 5.
 
 
 ## Step 1: One More Rival
 
-Just for fun, let's bump the rival count and add a fourth color to choose from:
+Bump the rival count and add a fourth color to choose from:
+
 ```python
 NUM_RIVALS = 4
 ```
 ```python
 RIVAL_COLORS = ["car_blue", "car_green", "car_yellow", "car_orange"]
 ```
+*Expected State: a fourth rival on the starting grid. The track itself is
+still Part 1's tiny 3-segment demo curve — `TRACK` hasn't changed yet.*
 
-Run it and there's a fourth rival on the grid, but the track is still Part
-1's tiny 3-segment demo curve — `TRACK` itself hasn't changed yet. This is
-a good moment to point out that bumping `NUM_RIVALS` needed no other code
-changes anywhere (`LANE_COUNT`, `ROAD_WIDTH`, `WIDTH`, and the starting grid
-all recompute themselves) — the exact same "just data" idea Step 2 is about
-to apply to `TRACK` itself.
+**Teaching Note:** bumping `NUM_RIVALS` needed no other code changes
+anywhere. `LANE_COUNT`, `ROAD_WIDTH`, `WIDTH`, and the starting grid all
+recompute themselves from it. That's the same "just data" idea Step 2 is
+about to apply to `TRACK` itself.
 
 
 ## Step 2: Replace the Demo Track With a Full Lap
@@ -52,47 +52,55 @@ TRACK = [
 ]
 FINISH_DISTANCE = sum(length for length, _ in TRACK)
 ```
+*Expected State: a full lap — a real, twisting course with a turn to react
+to every few hundred metres, the whole way around. All four rivals track
+it automatically, exactly as before.*
 
-Now, short straights connect a series of curves in alternating directions, so
-there's a turn to react to every few hundred metres for the whole race -
-nothing like Part 1's single demo curve. Read this top to bottom and
+**The Concept:** short straights connect a series of curves in alternating
+directions, so there's a turn every few hundred metres for the whole race —
+nothing like Part 1's single demo curve. Read the list top to bottom and
 you're reading the shape of the track: start straight, sweep left, hold
 left briefly, sweep hard right, hold right briefly, curve back to centre,
 curve left, curve right, and settle at centre for the finish.
 
-**Nothing else in the file changes.** `_segment_at()`, `center_x_at_distance()`,
-`is_turn_at()`, and `road_center_x()` all work exactly as they did with the
-3-segment demo — a list of `(length, center)` pairs is a list of `(length,
-center)` pairs, whether it has 3 entries or 13. `FINISH_DISTANCE` recomputes
-itself from whatever `TRACK` currently contains, so it's always correct
-without anyone needing to update it by hand.
+**Teaching Note:** `_segment_at()`, `center_x_at_distance()`, `is_turn_at()`,
+and `road_center_x()` all work exactly as they did with the 3-segment demo.
+A list of `(length, center)` pairs is a list of `(length, center)` pairs,
+whether it has 3 entries or 13. `FINISH_DISTANCE` recomputes itself from
+whatever `TRACK` currently contains, so it stays correct without anyone
+updating it by hand.
 
-**Running the game now shows a full lap** — a real, twisting course with a
-turn to react to every few hundred metres, and all four rivals tracking it
-automatically, exactly as before.
+**Classroom Demo:** temporarily set every `center` value in `TRACK` to
+`CENTER` and rerun. The road runs perfectly straight — the same shape as
+Part 1 before curves existed — with none of the surrounding code touched.
+Restore the full lap afterward.
+
+**Classroom Prompt (For Fast Finishers):** what happens to a stretch of
+track where two *consecutive* entries share the same `center` value — does
+it curve, or run straight? (Straight. `is_turn_at()` only reports a turn
+when a segment's start and end centres differ.)
 
 
 ## Suggested In-Class Exercise: Design Your Own Track
 
-With the time this session leaves free, have students design their own
-`TRACK` for the last 10-15 minutes — a hairpin-heavy course, a mostly
-straight course with one dramatic sweep, whatever they like. Since
-`FINISH_DISTANCE` is derived from `TRACK`'s own total length, this is
-completely safe to hand to students without them needing to touch any other
-constant — lengthening a straight, sharpening a turn, or adding a whole new
+Give students the last 10-15 minutes to design their own `TRACK` — a
+hairpin-heavy course, a mostly straight course with one dramatic sweep,
+whatever they want. `FINISH_DISTANCE` is derived from `TRACK`'s own total
+length, so this is safe to hand to students without them touching any other
+constant: lengthening a straight, sharpening a turn, or adding a whole new
 bend is purely a data change.
 
 **Watch for:** a `TRACK` with very few segments but very large `center`
 swings between them can produce sharper, more sudden-feeling curves than a
-gentle multi-segment sweep — a good excuse to talk about *why* the current
+gentle multi-segment sweep — a good excuse to talk about why the current
 track uses several smaller steps for each direction change instead of one
 giant jump.
 
 
 ## Checkpoint: Final Code for Week 4, Part 2
 
-The full script should now match `04_week4_part2.py` — the finished, playable
-game from the end of the core curriculum.
+The full script should now match `04_week4_part2.py` — the finished,
+playable game from the end of the core curriculum.
 
 ```python
 import random
@@ -421,3 +429,10 @@ def update():
             player_place = len(race_results) + 1
             game_state = "won"
 ```
+*Expected State: a complete, playable racing game — a full 13-segment lap,
+four rivals, a countdown, collisions, and a finish line. This is the last
+checkpoint of the core 4-week curriculum.*
+
+**Up Next:** Week 5 is optional bonus content. Part 1 turns the "READY TO
+RACE?" screen into a real start menu (car choice, race length, AI
+difficulty); Part 2 adds a second human player sharing the keyboard.

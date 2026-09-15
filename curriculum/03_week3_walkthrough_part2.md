@@ -9,9 +9,10 @@ into five:
 "waiting"  ->  "countdown"  ->  "racing"  <->  "frozen"  ->  "won"
 ```
 
-For every state, ask the same two questions: **"what can happen from here?"**
-and **"what causes leaving this state?"** Walking through that table on the
-board before touching any code pays off enormously in this session.
+**Concept: design each state by asking two questions.** For every state:
+"what can happen from here?" and "what causes leaving this state?" The table
+below answers both for all five states — refer back to it while wiring up
+Step 5's state machine.
 
 | State | What can happen | Leaves when... |
 |---|---|---|
@@ -35,17 +36,19 @@ COUNTDOWN_NUMBERS = [3, 2, 1]
 COUNTDOWN_FRAMES = len(COUNTDOWN_NUMBERS) * FPS + FPS // 3   # "3","2","1", then a short "GO!"
 FREEZE_FRAMES = 2 * FPS        # how long a crash freezes you for
 ```
+*Expected State: no visible change — nothing reads these constants yet.*
 
-Pygame Zero calls update() 60 times a second by default. So "how many
-frames is 2 seconds?" is just "2 * 60." We count these timers DOWN, one
-frame at a time, and treat "reached zero" as "time to change state."
+**Teaching Note:** Pygame Zero calls `update()` 60 times a second by
+default, so "how many frames is 2 seconds?" is just "2 * 60." These timers
+count down, one frame at a time, and "reached zero" is treated as "time to
+change state."
 
-**Math note:** `len(COUNTDOWN_NUMBERS) * FPS` is "3 numbers, 60 frames
-each" = 180 frames, and `FPS // 3` (20 frames, a third of a second) tacks on
-a short extra window for a final "GO!" flash — so `COUNTDOWN_FRAMES` is
-`200` in total. A "timer" in this style of game is nothing more than a
-number that starts at some frame count and gets decremented by `1` every
-`update()` call; "the timer expired" just means "that number reached `0`."
+**Math Concept:** `len(COUNTDOWN_NUMBERS) * FPS` is "3 numbers, 60 frames
+each" = 180 frames. `FPS // 3` (20 frames, a third of a second) adds a short
+extra window for a final "GO!" flash, so `COUNTDOWN_FRAMES` totals 200
+frames. A timer in this style of game is just a number that starts at some
+frame count and gets decremented by `1` every `update()` call — "the timer
+expired" means it reached `0`.
 
 ## Step 2: New State Variables
 
@@ -58,11 +61,13 @@ countdown_timer = 0             # frames left in the "countdown" state
 freeze_timer = 0                 # frames left in the "frozen" state
 player_start_lane = 0.0          # the player's lane on the starting grid
 ```
+*Expected State: no visible change. `update()` still gates all driving
+behind `game_state == "racing"`, and `game_state` now starts as `"waiting"`
+instead — the car simply sits still.*
 
-**Why remember `player_start_lane`:** Part 1 only ever used the player's
-starting lane once, right when it was picked, then threw it away. This
-session needs it again later — when a crash happens, we're going to snap the
-player back to their own grid lane rather than leave them wherever the
+**Teaching Note:** Part 1 used the player's starting lane once, then
+discarded it. This session needs it again — when a crash happens, the
+player snaps back to their own grid lane instead of staying wherever the
 collision occurred (Step 5 explains why).
 
 ## Step 3: Update `new_race()`
@@ -74,6 +79,8 @@ state from `"racing"` to `"waiting"`.
 
 ```python
 def new_race():
+    """Reset to a fresh starting grid. Note this ends in "waiting", not
+    "racing" - pressing SPACE from here is what kicks off the countdown."""
     global player_speed, distance_traveled, rivals, game_state
     global race_results, player_place, player_start_lane
     player_speed = 0.0
@@ -103,16 +110,23 @@ def new_race():
     for r in rivals:
         r["actor"].pos = (lane_to_x(r["lane"], PLAYER_ROW), PLAYER_ROW)
 ```
+*Expected State: no visible change yet — starting a race still looks
+identical, since nothing reads `state` or `freeze_timer` on a rival dict
+until Step 5.*
 
-**Why give rivals a `state` at all:** in Part 1, a rival was either racing or
-it wasn't — there was no in-between. This session adds a *third* possibility
-for a rival (frozen, after a crash), so it needs the same two-field shape
-(`state` + `freeze_timer`) the player already has, tracked per-rival instead
-of once globally.
+**Teaching Note:** in Part 1, a rival was either racing or it wasn't. This
+session adds a third possibility — frozen, after a crash — so each rival
+needs the same two-field shape (`state` + `freeze_timer`) the player
+already has, tracked per-rival instead of once globally.
+
+**Classroom Prompt (For Fast Finishers):** the player gets one global
+`freeze_timer`, but each rival carries its own inside its dictionary. Why
+can't rivals share a single global timer the way the player does?
 
 ## Step 4: Drawing Every State
 
-Blink the rivals and the player while frozen, instead of drawing them solid:
+Blink the rivals and the player while frozen, instead of drawing them
+solid:
 
 ```python
     for r in rivals:
@@ -123,13 +137,6 @@ Blink the rivals and the player while frozen, instead of drawing them solid:
     if game_state != "frozen" or (freeze_timer // 6) % 2 == 0:
         player.draw()
 ```
-
-**Math note — a blink from a timer:** `freeze_timer // 6` groups every 6
-consecutive frame-counts together (`120-115` all give `20`, `114-109` all
-give `19`, ...), and `% 2` alternates between even and odd as that grouped
-number decreases. At 60 FPS, 6 frames is a tenth of a second, so this toggles
-roughly 5 times a second — fast enough to read as "blinking," without
-needing a dedicated animation system.
 
 Add the new HUD messages and screens, replacing the old crashed-only check:
 
@@ -160,14 +167,29 @@ def _draw_countdown():
     else:
         _banner("GO!", "")
 ```
+*Expected State: the game now boots straight to a "READY TO RACE?" banner
+instead of a moving car. Pressing SPACE reshuffles the grid (`new_race()`
+runs) but nothing advances past "waiting" — `update()` hasn't been taught
+the other four states yet.*
 
-**Math note:** `elapsed` is "how many frames have ticked by since the
-countdown started" — the *opposite direction* from `countdown_timer`, which
-counts down. `elapsed // FPS` turns that into "how many whole seconds have
-elapsed" (`0` for the first second, `1` for the second, `2` for the third),
+**Math Concept — the blink toggle:** `freeze_timer // 6` groups every 6
+consecutive frame-counts together, and `% 2` alternates even/odd as that
+grouped number falls. At 60 FPS, 6 frames is a tenth of a second, so this
+toggles roughly 5 times a second — fast enough to read as blinking, without
+a dedicated animation system.
+
+**Math Concept — countdown indexing:** `elapsed` counts up from 0 — the
+opposite direction from `countdown_timer`, which counts down.
+`elapsed // FPS` turns that into whole seconds elapsed (`0`, `1`, `2`),
 which indexes straight into `COUNTDOWN_NUMBERS = [3, 2, 1]`. Once a full 3
-seconds have elapsed, that index would run off the end of the list — that's
-exactly the case the `else` branch catches, showing "GO!" instead.
+seconds have passed, that index would run off the end of the list — the
+`else` branch catches exactly that case and shows "GO!" instead.
+
+**Classroom Demo:** temporarily set `game_state = "frozen"` right after the
+`new_race()` call at module load and run it. The READY TO RACE banner is
+replaced by the blinking freeze overlay — a quick way to prove the blink
+logic works before Step 5 makes "frozen" reachable through normal play.
+Undo the change afterward.
 
 ## Mid-Session Checkpoint: Every State Can Draw Itself, None of Them Work Yet
 
@@ -427,17 +449,19 @@ def update():
         player_place = len(race_results) + 1
         game_state = "won"
 ```
+*Expected State: stuck on "READY TO RACE?" forever. Pressing SPACE quietly
+calls `new_race()` — the grid reshuffles — but nothing advances to
+`countdown` or `racing`.*
 
-Run it and you're stuck looking at "READY TO RACE?" forever — pressing
-SPACE quietly calls `new_race()` (you can tell because the grid reshuffles),
-but nothing ever advances to `countdown` or `racing`, because `update()`
-still only knows the old two-state world (`"racing"` vs. "anything else").
-Every state can now draw its own screen correctly; none of them can be
-*reached*. That's exactly the gap Step 5 closes.
+`update()` still only knows the old two-state world (`"racing"` vs.
+"anything else"), so every state can now draw its own screen correctly, but
+none of them can be *reached* yet. That gap is what Step 5 closes — this
+old two-state logic is left in place deliberately, not an oversight.
 
 ## Step 5: The State Machine in `update()`
 
-This is the whole session's payoff. Replace the top of `update()`:
+This is where the five states above actually get wired together. Replace
+the top of `update()`:
 
 ```python
 def update():
@@ -469,6 +493,16 @@ def update():
             new_race()
         return
 ```
+
+**Teaching Note:** each `if` owns exactly one state and decides when it
+ends. `"waiting"`, `"countdown"`, and `"won"` all `return` immediately —
+none of them involve cars moving, so there's no reason to run the rest of
+the function on those frames.
+
+**Classroom Demo:** delete the `return` after the `"waiting"` block and run
+it. Every frame now falls through into the rival-movement and collision
+logic below even before the countdown starts, and rivals begin racing
+before the player ever sees GO!. Restore the `return` afterward.
 
 Then replace the old steering/throttle block with a version gated on
 `"frozen"` vs. everything else:
@@ -534,17 +568,17 @@ instead of moving:
                 race_results.append(r)
 ```
 
-**This "not elif" comment is worth pausing on — it's a real bug this exact
-project once had.** If a rival's movement were skipped on the very frame it
-wakes back up, it would still be drawn at the old, overlapping spot for one
-more frame. Since a frozen car doesn't move, "overlapping" doesn't go away
-on its own — the very next collision check (below) would find the same
-overlap immediately, refreeze both cars, and repeat forever. Using a second,
-independent `if` (instead of `elif`) means a rival that flips to `"racing"`
-in the first `if` immediately gets its position updated in the second one,
-in that same frame.
+**Teaching Note — the "not elif" bug:** this exact project once shipped
+this as `elif`. If a rival's position update were skipped on the frame it
+wakes up, it stays drawn at its old, overlapping spot for one more frame. A
+frozen car doesn't move, so that overlap doesn't resolve on its own — the
+very next collision check finds the same overlap, refreezes both cars, and
+repeats forever. Two independent `if` statements fix it: a rival that flips
+to `"racing"` in the first `if` gets its position updated in the second
+`if`, the same frame.
 
-Finally, update the collision check to freeze both cars, and separate them:
+Finally, update the collision check to freeze both cars, and separate
+them:
 
 ```python
     if game_state == "racing":
@@ -574,17 +608,23 @@ Finally, update the collision check to freeze both cars, and separate them:
             player_place = len(race_results) + 1
             game_state = "won"
 ```
+*Expected State: the full game loop works — READY TO RACE, a 3-2-1-GO
+countdown, driving, a crash that freezes and blinks both cars for two
+seconds instead of ending the run, and a win banner.*
 
-**Why snap back to a LANE, not just any gap:** the first fix that might come
-to mind is "push the rival back a little in distance so there's room." That
-almost works, but both cars are frozen and don't move again until they wake
-up — if they're still in the *same lane*, the instant both unfreeze, the
-player is right back on a collision course with that same rival, and a
-narrow gap can close again within a single frame of driving at full speed.
-Snapping each car to its OWN lane from the starting grid sidesteps the
-problem completely: since every car already has a guaranteed-unique lane, no
-amount of speed can put two just-unfrozen cars back in the same spot by
+**Teaching Note — why snap to a LANE, not just a gap:** the obvious fix is
+pushing the rival back a little in distance to make room. That doesn't
+hold: both cars are frozen and don't move again until they wake up, so if
+they're still in the same lane, the instant both unfreeze the player is
+right back on a collision course — a narrow gap can close again within one
+frame at full speed. Snapping each car to its own starting-grid lane
+sidesteps this: every car already has a guaranteed-unique lane, so no
+amount of speed puts two just-unfrozen cars back in the same spot by
 accident.
+
+**Classroom Prompt (For Fast Finishers):** the collision loop `break`s
+after the first hit each frame. What happens on a frame where the player
+is touching two rivals at once — does the second rival ever get frozen?
 
 ## Checkpoint: Final Code for Week 3, Part 2
 
@@ -874,9 +914,14 @@ def update():
             player_place = len(race_results) + 1
             game_state = "won"
 ```
+*Expected State: a full race — READY TO RACE, countdown, driving, a crash
+that freezes and blinks both cars for two seconds, and a placement banner
+at the finish line.*
 
 **Watch for:** the biggest behavior change from Part 1 is that rivals keep
-moving while YOU are frozen — make sure students see that a crash still
-costs real ground, it just isn't fatal anymore. If a class runs long, this
-state-machine work can spill into the start of Week 4 without breaking
-anything — Week 4 builds on this finished file either way.
+moving while the player is frozen — make sure students see that a crash
+still costs real ground, it just isn't fatal anymore.
+
+**Up Next:** if a class runs long, this state-machine work can spill into
+the start of Week 4 without breaking anything — Week 4 builds on this
+finished file either way.

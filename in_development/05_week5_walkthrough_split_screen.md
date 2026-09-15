@@ -2,11 +2,10 @@
 
 **Not part of the required path.** This is a smaller, standalone stepping
 stone into split-screen: two human players race each other head-to-head on
-the same course, with no menu and no AI racers at all. It's good for a
-student who wants a gentler first step into split-screen before tackling
-Part 2's full menu-plus-multiplayer version, or as a quick aside for a fast
-finisher. Build it directly from Week 4's finished game — it does not need
-Week 5 Parts 1-3 at all.
+the same course, with no menu and no AI racers at all. It's a gentler first
+step into split-screen than Part 2's full menu-plus-multiplayer version, or
+a quick aside for a fast finisher. Build it directly from Week 4's finished
+game — it does not need Week 5 Parts 1-3 at all.
 
 ## Starting Code for the Optional Extra
 
@@ -338,12 +337,14 @@ def update():
             player_place = len(race_results) + 1
             game_state = "won"
 ```
-
+*Expected State: this runs exactly as the Week 4, Part 2 checkpoint always
+has — one human player, four AI rivals, a countdown, a single window. Split
+screen hasn't been touched yet.*
 
 ## Step 1: A Two-Player-Wide Road, and a Stacked Window
 
-Simplify the tuning knobs — there's no `LANE_COUNT` formula here, just room
-for exactly two cars:
+Simplify the tuning knobs first — there's no `LANE_COUNT` formula here, just
+room for exactly two cars:
 
 ```python
 LANE_WIDTH = 110
@@ -368,8 +369,7 @@ GRASS_MARGIN = 200
 WIDTH = ROAD_WIDTH + 2 * SHOULDER_WIDTH + 2 * GRASS_MARGIN
 ```
 
-Then the stacked-band setup (this is the whole trick behind split-screen —
-see Step 4):
+Then add the stacked-band setup:
 ```python
 # ---------------------------------------------------------------------------
 # STACKED BANDS
@@ -387,7 +387,7 @@ PLAYER_ROW_LOCAL = BAND_HEIGHT - 120
 
 CENTER = WIDTH // 2
 ```
-and add a colour for the bar between the two bands:
+Add one colour for the bar between the two bands:
 ```python
 DIVIDER = (20, 20, 20)     # the bar between the two bands
 ```
@@ -396,10 +396,23 @@ Keep your existing `TRACK` (the multi-turn lap from Week 4, Part 2)
 unchanged — this file races the same course, just with two players on it
 instead of one.
 
+*Expected State: no visible change and nothing runnable yet. The window's
+dimensions and the new constants exist, but `draw()` and `update()` still
+reference the old single-player globals.*
+
+**The Geometry:** `BAND_HEIGHT` is how tall one player's own view is; the
+whole window is just two of them stacked, so `HEIGHT = BAND_HEIGHT * 2`.
+`PLAYER_ROW_LOCAL` is measured from the top of a *band*, not the top of the
+window — that's what lets the same number mean "480 pixels into my own
+view" for both Player 1 (band starts at screen row 0) and Player 2 (band
+starts at screen row 400). Nothing here computes an actual screen `y` yet;
+that happens later, once drawing code adds a band's own `band_top` to a
+local row.
+
 ## Step 2: Every Road Formula Takes a `player`
 
 Just like the road-curving functions (`_segment_at`, `center_x_at_distance`,
-`is_turn_at`) which stay exactly as they were, the *positional* formulas
+`is_turn_at`), which stay exactly as they were, the *positional* formulas
 that used to read a single global now take a `player` dictionary instead:
 
 ```python
@@ -441,14 +454,18 @@ def on_shoulder(x, y_local, player):
     return (road_left(y_local, player) - SHOULDER_WIDTH
             <= x <= road_right(y_local, player) + SHOULDER_WIDTH)
 ```
+*Expected State: still nothing runnable. These functions now require a
+`player` argument, but nothing in the file calls them that way yet — that
+gets wired up in Step 3.*
 
-**Why this refactor is mostly mechanical:** every one of these already
-existed in some form since Week 1 or Week 2 — the only change is reading
-`player["distance"]` where there used to be one shared `distance_traveled`,
-and taking `y_local` (a row *within a band*) instead of an absolute screen
-row. There's no `lane_to_x()` in this file at all, unlike the AI-populated
-Week 5 files — with no rivals to place in lanes, each player just steers
-their own `x` position directly, the same way Week 1 always did.
+**Teaching Note:** this refactor is mostly mechanical. Every one of these
+functions already existed in some form since Week 1 or Week 2 — the only
+change is reading `player["distance"]` where there used to be one shared
+`distance_traveled`, and taking `y_local` (a row *within a band*) instead of
+an absolute screen row. There's no `lane_to_x()` in this file at all, unlike
+the AI-populated Week 5 files — with no rivals to place in lanes, each
+player steers their own `x` position directly, the same way Week 1 always
+did.
 
 ## Step 3: A Dictionary Per Player
 
@@ -491,22 +508,32 @@ def new_race():
 
 new_race()
 ```
+*Expected State: still not runnable on its own. `game_state`, `players`,
+and `new_race()` all exist now, but `draw()` and `update()` haven't been
+rewritten to use them — the Mid-Session Checkpoint below borrows that code
+early to get back to something playable.*
 
-**The idea to put on the board:** everything that used to be a handful of
-global variables (`player_speed`, `distance_traveled`, ...) now lives inside
-a dictionary instead — one dict per player. That's the same trick already
-used for rivals since Week 2 (bundle related values together); this file
-just applies it to the human players too, so the exact same
-drawing/steering code can run once for Player 1 and once for Player 2,
-instead of being duplicated by hand.
+**Teaching Note:** everything that used to be a handful of global variables
+(`player_speed`, `distance_traveled`, ...) now lives inside a dictionary
+instead — one dict per player. That's the same trick already used for
+rivals since Week 2: bundle related values together. This file just applies
+it to the human players too, so the exact same drawing and steering code
+can run once for Player 1 and once for Player 2, instead of being
+duplicated by hand.
+
+**Classroom Prompt (For Fast Finishers):** `make_player()` doesn't hard-code
+"there are only two players" anywhere — it just takes whatever `band_top`
+you hand it. What else would need to change to support a three-player,
+three-band race? (Mostly `BAND_HEIGHT`/`HEIGHT` math and a third entry in
+`players` — the per-player functions from Step 2 already generalize.)
 
 ## Mid-Session Checkpoint: Two Players, Two Bands, No Explanation Yet
 
 Steps 1-3 replace the whole data model (one player + rivals → a `players`
-list, no rivals at all) at once, which leaves nothing runnable in between —
-`draw()` and `update()` still expect the old globals. So this checkpoint
-also borrows `draw()`/`draw_player_band()` from Step 4 and
-`update_player()`/`update()` from Step 5 early, just to keep the game
+list, no rivals at all) in one move, which leaves nothing runnable in
+between — `draw()` and `update()` still expect the old globals. This
+checkpoint borrows `draw()`/`draw_player_band()` from Step 4 and
+`update_player()`/`update()` from Step 5 early, to get back to something
 playable at this halfway point. Steps 4 and 5 below walk through this exact
 code, with the explanation. At this stage, the full Python script should
 look something like this:
@@ -680,6 +707,8 @@ def draw():
 
 
 def draw_player_band(player):
+    """Draw one player's entire world - road, car, HUD - clipped to their
+    own band so it can never draw over the other player's half."""
     band_top = player["band_top"]
 
     screen.surface.set_clip(Rect(0, band_top, WIDTH, BAND_HEIGHT))
@@ -744,6 +773,9 @@ def _banner(title, subtitle):
 
 ### UPDATE
 def update_player(player):
+    """Move one player. Note this reads player["keys"] with getattr()
+    instead of hard-coding `keyboard.left` - that's the one line that lets
+    Player 1 and Player 2 share this same function with different keys."""
     key_left, key_right, key_up, key_down = player["keys"]
 
     if getattr(keyboard, key_left):
@@ -801,13 +833,15 @@ def update():
             game_state = "won"
             break
 ```
+*Expected State: two full bands stacked in one window, both players
+driving the same course independently — Player 1 on arrow keys in the top
+half, Player 2 on WASD in the bottom half. This already plays like the
+finished file.*
 
-Run it and this already plays like the finished file — two stacked bands,
-both players driving the same course independently. That's honest: Steps
-4-5 don't add new behavior, they walk through explaining the two tricks
-that make this work (`set_clip` for the split, `getattr` for per-player
-keys) one piece at a time. Read them as commentary on the code above, not as
-new code to type.
+Steps 4 and 5 don't add any new behavior — they walk through the two
+tricks that make this checkpoint work (`set_clip()` for the split,
+`getattr()` for per-player keys), one piece at a time. Read them as
+commentary on the code above, not as new code to type.
 
 ## Step 4: Two Bands, One Window
 
@@ -834,8 +868,6 @@ def draw():
 
 
 def draw_player_band(player):
-    """Draw one player's entire world - road, car, HUD - clipped to their
-    own band so it can never draw over the other player's half."""
     band_top = player["band_top"]
 
     # Everything from here down is clipped to a WIDTH x BAND_HEIGHT
@@ -881,31 +913,36 @@ def draw_player_band(player):
     screen.draw.text(f"{int(player['distance'])} / {FINISH_DISTANCE} m",
                      topleft=(10, band_top + 36), fontsize=22, color="white")
 ```
+*Expected State: identical on-screen behavior to the checkpoint above —
+this step doesn't change what the game does, only explains the `draw()`
+code that's already running.*
 
-**The idea to put on the board — the whole trick of split-screen.**
-`screen.surface.set_clip(rect)` tells Pygame Zero "only actually paint
-pixels inside this rectangle; ignore anything I try to draw outside it." We
-draw Player 1's whole world — road, car, HUD — completely normally, but with
-the clip rectangle limited to the TOP half of the window. `draw_player_band`
-doesn't know or care that it's being clipped. Then we call the *exact same
-function* again for Player 2, clipped to the BOTTOM half instead. Two calls
-to one function, two different clip rectangles, and the result looks like
-two independent split screens. `set_clip(None)` turns clipping back off,
-which matters for anything meant to span the whole window (the divider bar,
-banners).
+**The Geometry:** `screen.surface.set_clip(rect)` tells Pygame Zero "only
+actually paint pixels inside this rectangle — ignore anything drawn outside
+it." Player 1's whole world (road, car, HUD) draws completely normally,
+just with the clip rectangle limited to the TOP half of the window;
+`draw_player_band()` itself doesn't know or care that it's being clipped.
+The same function then runs again for Player 2, clipped to the BOTTOM half
+instead. Two calls to one function, two different clip rectangles, and the
+result reads as two independent split screens. `set_clip(None)` turns
+clipping back off — needed for anything meant to span the whole window,
+like the divider bar or a banner.
 
-Countdown/banner helpers are unchanged in shape from earlier weeks — just
-remember to call `screen.surface.set_clip(None)` at the start of `_banner()`
-too, so a banner always spans the full window even if the last thing drawn
-was clipped to one band.
+**Classroom Demo:** comment out the `screen.surface.set_clip(None)` call
+at the top of `_banner()` and trigger the "READY TO RACE?" banner while a
+band's clip rectangle is still active. Half the banner text gets clipped
+away — a fast, concrete demonstration of what "ignore anything drawn
+outside this rectangle" actually means.
+
+Countdown and banner helpers are otherwise unchanged in shape from earlier
+weeks — the one new detail is that `_banner()` must call
+`screen.surface.set_clip(None)` itself, so a banner always spans the full
+window even if the last thing drawn was clipped to one band.
 
 ## Step 5: Moving Both Players
 
 ```python
 def update_player(player):
-    """Move one player. Note this reads player["keys"] with getattr()
-    instead of hard-coding `keyboard.left` - that's the one line that lets
-    Player 1 and Player 2 share this same function with different keys."""
     key_left, key_right, key_up, key_down = player["keys"]
 
     if getattr(keyboard, key_left):
@@ -966,15 +1003,24 @@ def update():
             game_state = "won"
             break   # whoever we find first crossing the line this frame wins
 ```
+*Expected State: identical on-screen behavior to the checkpoint above —
+this step explains the `update()` code already running, it doesn't change
+anything.*
 
-**Why `getattr(keyboard, key_left)`:** `key_left` is a *string* (`"left"` or
-`"a"`), and Python has no built-in way to write `keyboard.key_left` and have
-it look up the attribute named by that string's *value* — that syntax would
-look for a literal attribute called `key_left`, which doesn't exist.
-`getattr(object, name)` is the tool for exactly this: "fetch the attribute
-of `object` whose name is this string." It's the one line that lets
-`update_player()` serve two players with two different keyboards' worth of
-keys.
+**The Concept:** `key_left` is a *string* (`"left"` or `"a"`), and Python
+has no built-in way to write `keyboard.key_left` and have it look up the
+attribute *named by that string's value* — that syntax would look for a
+literal attribute called `key_left`, which doesn't exist. `getattr(object,
+name)` is the tool for exactly this: "fetch the attribute of `object` whose
+name is this string." It's the one line that lets `update_player()` serve
+two players with two different keyboards' worth of keys.
+
+**Classroom Prompt (For Fast Finishers):** `update_player()` already reads
+its keys from `player["keys"]` instead of assuming arrow-keys-vs-WASD. What
+would it take to let a player remap their own keys from the "waiting"
+screen, before the countdown starts? (Nothing here would need to change —
+only the call site that builds each player with `make_player()` would pass
+different key names.)
 
 ## Checkpoint: Final Code for the Optional Extra
 
@@ -1270,10 +1316,12 @@ def update():
             game_state = "won"
             break
 ```
+*Expected State: the finished file — two stacked bands, two independent
+human-controlled cars, one shared course, no AI and no menu.*
 
 **Watch for:** there are no AI rivals and no collisions between the two
 players in this file — both players race their own private copy of the
-track, and can't affect each other at all. Both of those are intentional
-gaps, and natural "extend this yourself" prompts for a student who finishes
-early: try adding a shared set of AI rivals (Part 2's approach), or make the
-two players able to bump into each other.
+track and can't affect each other at all. Both are intentional gaps and
+natural "extend this yourself" prompts for a student who finishes early:
+try adding a shared set of AI rivals (Part 2's approach), or make the two
+players able to bump into each other.

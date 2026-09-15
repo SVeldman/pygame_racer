@@ -2,16 +2,18 @@
 
 Builds directly on Part 1's settings menu, adding a second human player:
 Player 1 (arrow keys) and Player 2 (W/A/S/D), each with their own stacked
-half of the window. Both players race the exact SAME race — the same AI
+half of the window. Both players race the exact same race — the same AI
 racers, at the same positions, crashing and recovering the same way no
 matter which band you're watching them from — not two similar-looking but
 independent races.
 
-**If Part 1 made sense, this file has very few genuinely new ideas.** It's
-mostly "give the player dict a sibling, and run everything twice." That's
-worth saying explicitly: good design (a dict per racer, and now a dict per
-player, settings as data) is what makes extending a feature cheap instead of
-a rewrite.
+**Concept: extending beats inventing.** If Part 1 made sense, this file has
+very few genuinely new ideas. It's mostly "give the player dict a sibling,
+and run everything twice." A racer was already a dict, and the single
+player's state was heading the same direction — so adding a second human
+player is mostly copy-and-connect work, not new invention. Good design
+decisions (a dict per racer, settings as data) show their value here:
+extending a feature is cheap because the shape was already right.
 
 ## Starting Code for Week 5, Part 2
 
@@ -429,6 +431,12 @@ def update():
             player_place = len(race_results) + 1
             game_state = "won"
 ```
+*Expected State: running this file plays exactly like the Week 5, Part 1
+checkpoint — one player, one band, a settings menu. Nothing here is new
+yet.*
+
+**Teaching Note:** this is Part 1's final checkpoint, unchanged. Every step
+from here modifies this same code — nothing gets rewritten from scratch.
 
 ## Step 1: A Second Car Choice in the Menu
 
@@ -452,15 +460,25 @@ length_index = 1
 difficulty_index = 1
 ```
 
-Part 1 picked AI colors inline, straight out of `CAR_CHOICES`. Now that
-*two* colors need excluding (one per player) instead of just one, pull the
-AI's palette out into its own constant — `RACER_COLORS`, a curated list that
-already leaves out `"car_red"` (reserved as the default player car color),
-so there's one less color to exclude by hand later:
+Pull the AI's color palette out into its own constant too. Part 1 picked AI
+colors inline, straight out of `CAR_CHOICES`. Now that *two* colors need
+excluding (one per player) instead of one, a curated list is simpler —
+`RACER_COLORS` already leaves out `"car_red"` (reserved as the default
+player car color), so there's one less color to exclude by hand later:
 ```python
 RACER_COLORS = ["car_blue", "car_green", "car_yellow", "car_orange",
                 "car_pink", "car_silver", "car_white"]
 ```
+*Expected State: the file no longer runs on its own — `car_index` no longer
+exists, but `player = Actor(CAR_CHOICES[car_index], ...)` and
+`_apply_menu_choices()` still reference it. That's expected; Step 6 finishes
+reconnecting the menu to both car fields.*
+
+**Teaching Note:** `RACER_COLORS` is a separate list, not a filtered copy of
+`CAR_CHOICES` computed at runtime. Excluding both players' current colors
+happens once per race, inside `_new_grid()` (Step 5) — keeping a curated
+starting list here just means that filtering step has less work to do, and
+`"car_red"` never needs excluding by hand.
 
 ## Step 2: A Window Split Into Two Stacked Bands
 
@@ -482,20 +500,22 @@ And add a colour for the divider between the two bands:
 ```python
 DIVIDER = (20, 20, 20)
 ```
+*Expected State: still not runnable, for the same reason as Step 1 — this
+step only reworks the window-size math and adds a color.*
 
-**Why `PLAYER_ROW_LOCAL`, not `PLAYER_ROW`:** each player's car sits at a
-fixed row *within their own band* — `BAND_HEIGHT - 120` pixels down from
-wherever that band starts, not from the top of the whole window. Naming it
-`_LOCAL` is a signal: this is a row relative to a band, not an absolute
-screen row. `HEIGHT = BAND_HEIGHT * 2` makes the window exactly tall enough
-for both bands stacked on top of each other.
+**The Geometry:** each player's car sits at a fixed row *within their own
+band* — `BAND_HEIGHT - 120` pixels down from wherever that band starts, not
+from the top of the whole window. That's what `PLAYER_ROW_LOCAL` names: a
+row relative to a band, not an absolute screen row. `HEIGHT = BAND_HEIGHT *
+2` makes the window exactly tall enough for both bands stacked on top of
+each other.
 
 ## Step 3: Every Formula Now Takes a `player`
 
-This is the one new wrinkle, and it touches almost every function you
-already know. `dist_at`, `row_at`, `road_center_x`, `road_left`,
-`road_right`, `on_road`, `on_shoulder`, and `lane_to_x` all gain a `player`
-parameter, and read that player's own distance instead of one shared global:
+This step touches almost every function already built. `dist_at`, `row_at`,
+`road_center_x`, `road_left`, `road_right`, `on_road`, `on_shoulder`, and
+`lane_to_x` all gain a `player` parameter, and read that player's own
+distance instead of one shared global:
 
 ```python
 def dist_at(y_local, player):
@@ -532,15 +552,16 @@ def on_shoulder(x, y_local, player):
 def lane_to_x(lane, y_local, player):
     return road_left(y_local, player) + lane * ROAD_WIDTH
 ```
+*Expected State: still not runnable — every function above now also
+requires a `player` argument that nothing passes in yet.*
 
-**The idea to put on the board:** these are the *exact same formulas* from
-every earlier week — `dist_at(y) = distance_traveled + (PLAYER_ROW - y)`
-becomes `dist_at(y_local, player) = player["distance"] + (PLAYER_ROW_LOCAL -
-y_local)`. The only change is *whose* distance we're reading. This is a
-great moment to ask: why does this refactor turn out to be so mechanical?
-Because the game's state was already living in a dictionary for every
-*rival*, all the way back in Week 2 — extending that same shape to a second
-*human* player is barely a new idea at all, just a new use of one.
+**Teaching Note:** these are the exact same formulas from every earlier
+week — `dist_at(y) = distance_traveled + (PLAYER_ROW - y)` becomes
+`dist_at(y_local, player) = player["distance"] + (PLAYER_ROW_LOCAL -
+y_local)`. The only change is *whose* distance gets read. This refactor is
+mechanical because the game's state already lived in a dictionary for every
+rival, all the way back in Week 2 — extending that same shape to a second
+human player is barely a new idea, just a new use of an old one.
 
 ## Step 4: A Dictionary Per Player
 
@@ -572,18 +593,22 @@ players = [
     make_player("P2", BAND_HEIGHT, "a", "d", "w", "s"),
 ]
 ```
+*Expected State: still not runnable — `draw()` and `update()` still
+reference the old `player`/`player_speed`/`distance_traveled` globals, which
+no longer exist.*
 
-**Why `"keys"` stores strings, not `keyboard.left` directly:** `keyboard` is
-an object where `keyboard.left` and `keyboard.a` are both valid attributes —
-but you can't easily choose *which* attribute to check from a variable using
-normal dot notation. Storing the *name* as a string (`"left"`, `"a"`) and
-looking it up with `getattr(keyboard, name)` (Step 7) is exactly what lets
-one function serve both players with different key bindings.
-
-**Notice `game_state` is now much smaller — just `"waiting"`, `"countdown"`,
-`"racing"`, `"won"`.** There's no shared `"frozen"` anymore, because freezing
-is now a *per-player* thing (each player's own `"state"` field), not a
-whole-race thing.
+**Teaching Note:**
+- `"keys"` stores key names as strings (`"left"`, `"a"`), not
+  `keyboard.left` directly. `keyboard` is an object where `keyboard.left`
+  and `keyboard.a` are both valid attributes, but there's no normal
+  dot-notation way to pick *which* attribute to check from a variable.
+  Storing the name as a string and looking it up with `getattr(keyboard,
+  name)` (Step 8) is what lets one function serve both players with
+  different key bindings.
+- `game_state` is also much smaller now — just `"waiting"`, `"countdown"`,
+  `"racing"`, `"won"`. There's no shared `"frozen"` state anymore, because
+  freezing is now per-player (each player's own `"state"` field), not a
+  whole-race thing.
 
 ## Step 5: One Shared List of AI Racers
 
@@ -655,21 +680,22 @@ def new_race():
 _apply_menu_choices()   # both players start with car_red from make_player() -
 new_race()              # this sets each one's REAL starting car before the first draw
 ```
+*Expected State: still not runnable — `draw()` and `update()` don't know
+about the `players` list or the shared `racers` list yet.*
 
-**Why the extra `_apply_menu_choices()` call, when `on_key_down()` already
-calls it on every menu edit:** `make_player()` always creates both actors
-with `"car_red"` as a placeholder image — `_apply_menu_choices()` is what
-sets each one to their *actual* chosen car (`CAR_CHOICES[p1_car_index]` /
-`CAR_CHOICES[p2_car_index]`). If a player accepts the defaults and presses
-SPACE without ever touching LEFT/RIGHT, `on_key_down()`'s call to
-`_apply_menu_choices()` never runs — without this extra call here, both
-cars would show up red on screen no matter what `p2_car_index` actually is.
+**Teaching Note:** `make_player()` always creates both actors with
+`"car_red"` as a placeholder image. The extra `_apply_menu_choices()` call
+at the bottom sets each one to its *actual* chosen car
+(`CAR_CHOICES[p1_car_index]` / `CAR_CHOICES[p2_car_index]`) even if a player
+never touches LEFT/RIGHT and accepts the defaults — `on_key_down()`'s own
+call to `_apply_menu_choices()` never fires in that case, so without this
+extra call both cars would show up red regardless of `p2_car_index`.
 
-**Why `grid[i]` for `enumerate(players)`, and `grid[len(players):]` for AI:**
-this is Week 3's starting-grid trick, generalized — instead of always
-reserving `grid[0]` for one player, we hand out the first `len(players)`
-slots (2, here) to the players in order, and everything left over to AI
-racers. The player-count is no longer hard-coded as "1."
+**Teaching Note:** `grid[i]` for `enumerate(players)`, and
+`grid[len(players):]` for AI, is Week 3's starting-grid trick generalized.
+Instead of always reserving `grid[0]` for one player, the first
+`len(players)` slots (2, here) go to the players in order, and everything
+left over goes to AI racers. The player count is no longer hard-coded as 1.
 
 ## Step 6: The Menu Handles Two Car Fields
 
@@ -711,30 +737,31 @@ instead of `1` (there are always two human players sharing that total):
 (`Length` and `Difficulty` are unchanged from Part 1.) Remember to add
 `p1_car_index` and `p2_car_index` to the `global` line at the top of
 `on_key_down()`, in place of the old single `car_index`.
+*Expected State: still not runnable on its own — the Mid-Session Checkpoint
+just ahead is the first point where `draw()` and `update()` catch up and the
+game runs again.*
 
-**Why skip past instead of just refusing the move:** the alternative -
-leaving `p1_car_index` unchanged when it would land on P2's car - makes
-LEFT or RIGHT silently do nothing at that one spot, which feels like a bug
-rather than a rule. Skipping past means every press of LEFT/RIGHT always
-moves the selection, it just never lands on a car the other player already
-has. Since P1 and P2 already have two different starting cars
-(`p1_car_index = 0`, `p2_car_index = 1`), they can never collide with each
-other in the first place - this only ever fires when a player's own edit
-would create a clash.
+**Teaching Note:** skipping past a taken color, instead of just refusing the
+move, matters for feel. Leaving `p1_car_index` unchanged when it would land
+on P2's car makes LEFT/RIGHT silently do nothing at that one spot — it reads
+as a bug, not a rule. Skipping past means every press always moves the
+selection; it just never lands on a car the other player already has. Since
+P1 and P2 start on two different cars (`p1_car_index = 0`, `p2_car_index =
+1`), this only ever fires when a player's own edit would create a clash.
 
 ## Mid-Session Checkpoint: The Data Model Is Two Players Deep, Nothing Draws It Yet
 
-Steps 1-6 replace the entire data model (one global player and rival list →
-`players` and shared `racers` lists) in one connected block, which leaves
-nothing runnable in between — the old single-player `draw()`/`update()`
-still expect globals that no longer exist. So this checkpoint also borrows
-`draw()`/`draw_player_band()` from Step 7, `update_player()`/
+Steps 1-6 replace the entire data model — one global player and rival list
+becomes `players` and a shared `racers` list — in one connected block, which
+leaves nothing runnable in between: the old single-player `draw()`/
+`update()` still expect globals that no longer exist. This checkpoint
+borrows `draw()`/`draw_player_band()` from Step 7, `update_player()`/
 `update_racers()`/`update()` from Step 8, the other-player visibility and
 collision code from Step 9, and the per-player finish/placement code from
-Step 10, all early, purely to keep the game playable (and fully finishable
-by both players) at this halfway point. Steps 7-10 below walk through this
-same code, with the explanation. At this stage, the full Python script
-should look something like this:
+Step 10, purely to keep the game playable (and fully finishable by both
+players) at this halfway point. Steps 7-10 below explain this same code,
+piece by piece. At this stage, the full Python script should look something
+like this:
 
 ```python
 import random
@@ -1265,13 +1292,16 @@ def update():
     if all(player["finished"] for player in players):
         game_state = "won"
 ```
+*Expected State: the game is fully playable again — a two-player menu, both
+bands visible, shared AI racers, collisions, and per-player finish placement
+all work, even though Steps 7-10 haven't "explained" any of it yet.*
 
 Run it and this already plays like the finished file — a real two-player
-menu, split-screen bands, shared AI racers, everything. That's honest: Steps
-7-8 don't add new behavior here, they walk through explaining the two
-tricks that make it work (`set_clip` for the split, and separating
-"per-player" from "shared" updates) one piece at a time. Read them as
-commentary on the code above, not as new code to type.
+menu, split-screen bands, shared AI racers, all of it. Steps 7-10 don't add
+new behavior from here; they walk through the code above one piece at a
+time, explaining `set_clip` for the band split and the split between
+per-player and shared updates. Read them as commentary on this code, not as
+new code to type.
 
 ## Step 7: Drawing Two Bands With `set_clip`
 
@@ -1355,25 +1385,32 @@ def draw_player_band(player):
                          midtop=(WIDTH // 2, band_top + 10),
                          fontsize=24, color=(255, 90, 60))
 ```
+*Expected State: identical on screen to the Mid-Session Checkpoint — this
+step only explains code already in place, it doesn't change behavior.*
 
-**The idea to put on the board — the one genuinely new mechanic here.**
-`screen.surface.set_clip(rect)` tells Pygame Zero "only actually paint
-pixels inside this rectangle; ignore anything drawn outside it."
-`draw_player_band()` doesn't know or care that it's being clipped — it just
-draws a whole player's world normally, starting from `band_top`. Calling it
-once with the clip set to the TOP half, then again with the clip set to the
-BOTTOM half, is what produces two independent-looking views from one
-drawing function. `set_clip(None)` (used in `draw()`, and inside `_banner`)
-turns clipping back off, so full-window elements like the divider bar and
-banners aren't accidentally cut in half.
+**Teaching Note:** `screen.surface.set_clip(rect)` tells Pygame Zero to only
+actually paint pixels inside that rectangle, and ignore anything drawn
+outside it. `draw_player_band()` doesn't know or care that it's being
+clipped — it just draws a whole player's world normally, starting from
+`band_top`. Calling it once with the clip set to the top half, then again
+with the clip set to the bottom half, produces two independent-looking views
+from one drawing function. `set_clip(None)` (used in `draw()`, and inside
+`_banner`) turns clipping back off, so full-window elements like the divider
+bar and banners aren't accidentally cut in half.
 
-**And the other idea worth naming:** each racer in the `for r in racers`
-loop gets its screen position **recomputed once per band**, using *that*
-player's own `row_at()`/`lane_to_x()`. The racer has exactly one real
-position (its `distance` and `lane`), but it gets *projected* onto two
-different bands, once per `draw_player_band()` call — the same shared car
-correctly shows up in a different spot in each half of the screen, because
-each half measures distance relative to a different player.
+**The Concept:** each racer in the `for r in racers` loop gets its screen
+position recomputed once per band, using *that* player's own `row_at()`/
+`lane_to_x()`. The racer has exactly one real position (its `distance` and
+`lane`), but it gets projected onto two different bands, once per
+`draw_player_band()` call — the same shared car shows up in a different spot
+in each half of the screen, because each half measures distance relative to
+a different player.
+
+**Classroom Demo:** comment out the `screen.surface.set_clip(Rect(...))`
+line at the top of `draw_player_band()` and run it — both players' roads
+bleed across the whole window instead of staying confined to their own
+half, which makes the point about what clipping actually buys you land
+fast.
 
 ## Step 8: Splitting `update()` Into "Per-Player" and "Shared"
 
@@ -1433,12 +1470,12 @@ def update_player(player):
                 break
 ```
 
-**`getattr(keyboard, key_left)` instead of `keyboard.left`:** since
-`key_left` is a *string* stored in the player's own dict (`"left"` for
-Player 1, `"a"` for Player 2), we can't write `keyboard.key_left` — Python
-would look for a literal attribute named `key_left`, which doesn't exist.
-`getattr(object, name_as_string)` is exactly the tool for "look up an
-attribute whose name I only have as a string" — this one line is what lets
+**The Concept:** `getattr(keyboard, key_left)` replaces `keyboard.left`
+because `key_left` is a string stored in the player's own dict (`"left"`
+for Player 1, `"a"` for Player 2) — `keyboard.key_left` would make Python
+look for a literal attribute named `key_left`, which doesn't exist.
+`getattr(object, name_as_string)` is the tool for looking up an attribute
+whose name is only known as a string. This one line is what lets
 `update_player()` serve both players with completely different keys.
 
 Then add `update_racers()`, which moves every AI racer **exactly once per
@@ -1466,11 +1503,11 @@ def update_racers():
                 r["finished"] = True
 ```
 
-**Why this can't live inside `update_player()`:** if advancing a racer's
-`distance` happened once per *player*, every racer would move twice as fast
-in a 2-player race as it would solo — its distance would grow once during
-P1's update, then again during P2's. Racers are shared state, so they get
-exactly one update per frame, called once, separately from the per-player
+**Teaching Note:** advancing a racer's `distance` can't live inside
+`update_player()`. If it did, every racer would move twice as fast in a
+2-player race as it would solo — its distance would grow once during P1's
+update, then again during P2's. Racers are shared state, so they get
+exactly one update per frame, called once, separate from the per-player
 loop.
 
 Finally, `update()` itself becomes a short coordinator:
@@ -1503,13 +1540,15 @@ def update():
             game_state = "won"
             break
 ```
+*Expected State: identical on screen to the Mid-Session Checkpoint — still
+explaining existing code, no behavior change.*
 
-**Why racers update BEFORE the players' loop:** doesn't strictly matter for
-correctness here, but it reads naturally as "move the shared world first,
-then let each player react to it" — and it means both players' collision
-checks in the same frame see racers at their already-updated positions,
-rather than one player seeing this frame's positions and the other seeing
-last frame's.
+**Teaching Note:** racers update before the players' loop. This doesn't
+strictly matter for correctness here, but it reads naturally as "move the
+shared world first, then let each player react to it" — and it means both
+players' collision checks in the same frame see racers at their
+already-updated positions, rather than one player seeing this frame's
+positions and the other seeing last frame's.
 
 ## Step 9: Seeing (and Crashing Into) the Other Player
 
@@ -1534,13 +1573,13 @@ def _player_lane(player):
     return (player["actor"].x - road_left(PLAYER_ROW_LOCAL, player)) / ROAD_WIDTH
 ```
 
-**Why a player needs this, and a racer doesn't:** a racer stores `"lane"`
-directly — one fraction, meaningful in any band. A player doesn't have that
-field; they just have a raw pixel `x`, last set inside *their own* band.
-`_player_lane()` derives the same kind of band-independent fraction on the
-fly from that `x`, so it can be compared against a *different* player's
-lane even though the two players' roads curve differently (each one curves
-relative to that player's own distance).
+**Teaching Note:** a racer stores `"lane"` directly — one fraction,
+meaningful in any band. A player doesn't have that field; they just have a
+raw pixel `x`, last set inside their own band. `_player_lane()` derives the
+same kind of band-independent fraction on the fly from that `x`, so it can
+be compared against a *different* player's lane even though the two
+players' roads curve differently (each one curves relative to that player's
+own distance).
 
 In `draw_player_band()`, add this right after the `racers` loop, before
 `player["actor"].draw()`:
@@ -1561,16 +1600,17 @@ In `draw_player_band()`, add this right after the `racers` loop, before
         other["actor"].pos = saved_pos
 ```
 
-**Why save and restore `.pos`, instead of just leaving it set:** a racer's
-`.pos` is disposable — nothing depends on its value between draws, so
-overwriting it fresh every band is fine. A *player's* `.pos` is not
-disposable: it's the exact value `update_player()` reads and steers from
-next frame. If drawing Player 1's band left Player 2's `actor.pos`
-overwritten with a ghost position computed for Player 1's band, Player 2
-would start steering from the wrong spot the next time their own
-`update_player()` runs. Saving the real position before the ghost-draw and
-restoring it immediately after means the ghost is purely visual — nothing
-about either player's real state is touched.
+**Teaching Note:** a racer's `.pos` is disposable — nothing depends on its
+value between draws, so overwriting it fresh every band is fine. A player's
+`.pos` is not disposable: it's the exact value `update_player()` reads and
+steers from next frame. Save the real position before the ghost-draw and
+restore it immediately after, and the ghost stays purely visual — nothing
+about either player's real state gets touched.
+
+**Classroom Demo:** delete the `other["actor"].pos = saved_pos` restore
+line and run a two-player race. Watch Player 2 visibly "teleport" toward
+wherever Player 1's band last drew their ghost — a clean demonstration of
+why the save/restore matters, not just a defensive habit.
 
 Now add the collision check itself, anywhere near `update_racers()`:
 ```python
@@ -1598,15 +1638,14 @@ def _check_player_collision():
             p["actor"].x = lane_to_x(p["start_lane"], PLAYER_ROW_LOCAL, p)
 ```
 
-**Math note — why not `colliderect()`, like a player-vs-racer crash uses:**
-a player-vs-racer check can use `colliderect()` because the racer's
-position has *already* been freshly projected into that exact player's band,
-right there in `update_player()`, a moment earlier. Checking player-vs-player
-would need one player's actor temporarily projected into the other's band
-first — the same ghost-position trick `draw_player_band()` just used, but
-for a collision check instead of a draw. Comparing `_player_lane()` and
-`["distance"]` directly sidesteps that entirely: it's a plain track-space
-comparison, no position mutation needed at all.
+**Math Concept:** a player-vs-racer check can use `colliderect()` because
+the racer's position has already been freshly projected into that exact
+player's band, right there in `update_player()`, a moment earlier. Checking
+player-vs-player would need one player's actor temporarily projected into
+the other's band first — the same ghost-position trick `draw_player_band()`
+just used, but for a collision check instead of a draw. Comparing
+`_player_lane()` and `["distance"]` directly sidesteps that: it's a plain
+track-space comparison, no position mutation needed.
 
 Finally, call it once per frame from `update()`, right after the per-player
 loop:
@@ -1616,11 +1655,14 @@ loop:
         update_player(player)
     _check_player_collision()
 ```
+*Expected State: both players' cars are now visible in both bands, and
+driving into the other player freezes both of them, exactly like a
+player-vs-racer crash.*
 
-**Running the game now shows both players' cars in both bands** — if
-Player 2 is nearby on the shared track, Player 1 can see them (and vice
-versa), and driving into each other freezes both, exactly like a
-player-vs-racer crash.
+**Classroom Prompt (For Fast Finishers):** `PLAYER_COLLISION_DISTANCE` is
+set to 80. Ask early finishers to predict what happens to head-on passing at
+high speed if that number were doubled, or cut in half — would players
+"phase through" each other more or less often?
 
 ## Step 10: Each Player Gets Their Own Finish
 
@@ -1643,14 +1685,14 @@ right after `racers = []`:
 race_results = []
 ```
 
-**Why one shared list for both racers and players:** placement only means
-something relative to *everyone* in the race, not just the other human
-player. If an AI racer finishes between the two players, that has to count
-— Player 2 finishing after one AI racer crosses is genuinely "2nd," not
-"1st," even though no other *player* beat them. One list, appended to by
-whoever crosses the line — AI or human — in the order it actually happens,
-keeps that count correct automatically: `len(race_results) + 1` is always
-"how many finished before me."
+**Teaching Note:** one shared list works for both racers and players
+because placement only means something relative to *everyone* in the race,
+not just the other human player. If an AI racer finishes between the two
+players, that counts — Player 2 finishing after one AI racer crosses is
+genuinely "2nd," not "1st," even though no other *player* beat them. One
+list, appended to by whoever crosses the line — AI or human — in the order
+it actually happens, keeps that count correct automatically: `len(
+race_results) + 1` is always "how many finished before me."
 
 Update `new_race()` to reset it (and each player's `place`) alongside
 everything else:
@@ -1690,12 +1732,12 @@ def update_player(player):
     if player["state"] == "frozen":
 ```
 
-**Why `"finished"` needs to be a real state, not just the existing
-`player["finished"]` boolean:** the boolean already exists (it's what the
-finish-line check tests), but `update_player()` doesn't look at it — it
-only branches on `player["state"]` (`"frozen"` vs. everything else, which
-falls into the movement code). Without a `"finished"` state to check, a
-player who already crossed the line would keep steering and accelerating
+**Teaching Note:** `"finished"` needs to be a real state, not just the
+existing `player["finished"]` boolean. The boolean already exists — it's
+what the finish-line check tests — but `update_player()` doesn't look at
+it; it only branches on `player["state"]` (`"frozen"` vs. everything else,
+which falls into the movement code). Without a `"finished"` state to check,
+a player who already crossed the line would keep steering and accelerating
 every frame after finishing, same as any other frame.
 
 Now replace the finish-line check in `update()` — instead of declaring an
@@ -1750,23 +1792,21 @@ right after the existing `"CRASHED! Recovering..."` check:
                          fontsize=20, color="white")
 ```
 
-**Why this banner lives inside `draw_player_band()`, not `draw()`:** every
-earlier full-window banner (`"waiting"`, `"countdown"`) is genuinely a
-whole-race state — nothing else is happening, so it makes sense to cover
-the whole screen. Finishing isn't like that anymore: one player can be
-celebrating while the other is still mid-turn. Drawing this banner from
-inside the already-clipped `draw_player_band()` call keeps it confined to
-that one player's own band, exactly like the "CRASHED! Recovering..." text
-right above it.
+**Teaching Note:** this banner lives inside `draw_player_band()`, not
+`draw()`, because finishing isn't a whole-race state anymore. Every earlier
+full-window banner (`"waiting"`, `"countdown"`) genuinely is one — nothing
+else is happening, so covering the whole screen makes sense. One player can
+now be celebrating while the other is still mid-turn. Drawing this banner
+from inside the already-clipped `draw_player_band()` call keeps it confined
+to that one player's own band, exactly like the "CRASHED! Recovering..."
+text right above it.
 
-**Running the game now lets the race continue for whoever hasn't finished**
-— the first player to cross sees their own placement banner immediately
-("YOU WIN!" or "YOU FINISHED 2ND!") and a "Waiting for the other player..."
-subtitle, while the other band keeps racing completely normally (their own
-band, the shared racers, and even a ghost of the finished player, still
-sitting where they crossed). Only once both players have finished does the
-subtitle switch to "Press SPACE to race again" and `game_state` becomes
-`"won"`.
+*Expected State: the race continues for whoever hasn't finished — the first
+player to cross sees their own placement banner immediately ("YOU WIN!" or
+"YOU FINISHED 2ND!") and a "Waiting for the other player..." subtitle,
+while the other band keeps racing normally. Only once both players have
+finished does the subtitle switch to "Press SPACE to race again" and
+`game_state` becomes `"won"`.*
 
 ## Checkpoint: Final Code for Week 5, Part 2
 
@@ -2302,10 +2342,14 @@ def update():
     if all(player["finished"] for player in players):
         game_state = "won"
 ```
+*Expected State: two-player split-screen racing, shared AI field, per-player
+crashes and finishes, matching the `.py` checkpoint exactly.*
 
-**Watch for:** the finish-line loop's `break` means only the *first* player
-found crossing the line in a given frame sets `winner_label` — if both
-players are close enough to cross on the exact same frame, whichever comes
-first in `players` wins the tie, silently. It's an edge case worth trying
-live (line the two cars up and cross together) so students see that ties
-are resolved by list order, not by whoever was truly ahead by a pixel.
+**Watch for:** ties on the finish line aren't broken by whoever is truly
+ahead by a pixel — they're broken by list order. If both players cross on
+the exact same frame, the finish-check loop processes P1 first: P1's
+`place` gets set and appended to `race_results` before P2 is even checked,
+so P2's `len(race_results) + 1` already counts P1 as ahead. P1 wins every
+exact tie, silently. Line the two cars up and cross together — it's a good
+live demonstration that "who's ahead" here is decided by iteration order,
+not by who was truly a half-pixel in front.

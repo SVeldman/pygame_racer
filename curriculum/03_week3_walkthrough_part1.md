@@ -3,11 +3,10 @@
 Last week you met ONE rival, stored in a single dictionary. This is the
 heaviest single session in the whole curriculum — more new vocabulary lands
 here than anywhere else (lists of dictionaries, list comprehensions,
-`random.shuffle`, a finish line, and placement). **Consider splitting your
-own delivery across the hour: spawning + movement first, then the finish
-line + placement second**, and lean on `03_week3_part1.py` itself as an
-answer key if the class runs long.
-
+`random.shuffle`, a finish line, and placement). Consider splitting your own
+delivery across the hour: spawning + movement first, then the finish line +
+placement second. Lean on `03_week3_part1.py` itself as an answer key if the
+class runs long.
 
 ## Step 1: More Rivals, and a Finish Line
 
@@ -29,9 +28,14 @@ game_state = "racing"           # "racing" | "crashed" | "won"
 race_results = []               # rivals, in the order they crossed the line
 player_place = None             # your finish position, once you cross
 ```
+*Expected State: no visible change — `NUM_RIVALS` going from `1` to `3` won't
+show up until `new_race()` (Step 2) actually builds three rivals instead of
+one.*
 
-**Nothing to run yet** — `NUM_RIVALS` going from `1` to `3` will show up once
-`new_race()` (Step 2) actually builds three rivals instead of one.
+**Teaching Note:** `LANE_COUNT` is defined as `NUM_RIVALS + 1`, not typed in
+by hand. Every rival needs its own lane, plus one for the player. Push
+`NUM_RIVALS` up to `6` later and `LANE_COUNT` — and everything downstream of
+it — recalculates on its own.
 
 ## Step 2: A Real Starting Grid
 
@@ -76,33 +80,35 @@ def new_race():
     for r in rivals:
         r["actor"].pos = (lane_to_x(r["lane"], PLAYER_ROW), PLAYER_ROW)
 ```
+*Expected State: three rivals lined up with you at the start, each in its own
+lane. Nobody moves toward a finish line yet — nothing's checking for one.*
 
-**Why `grid[0]` for you, and `grid[1:]` for everyone else:** `random.shuffle`
-scrambles the list of lane numbers *in place*. Handing the player the first
-slot and every rival one of the rest guarantees no two cars ever get the
-same lane — there simply aren't enough slots for a collision, and the
-shuffle makes it a different draw every race.
+**Teaching Note — why `grid[0]` is yours:** `random.shuffle` scrambles the
+list of lane numbers in place. Handing the player the first slot and every
+rival one of the rest guarantees no two cars ever land in the same lane —
+there simply aren't enough slots left for a collision — and the shuffle makes
+starting position a fresh draw every race.
 
-**Math note — turning a lane index into a lane fraction:** `lane_to_x()`
-(from Week 2) expects a fraction from `0.0` to `1.0`, not a raw lane number.
-`(lane_i + 0.5) / LANE_COUNT` converts index `lane_i` into "the *middle* of
-that lane, as a fraction of the whole road." With `LANE_COUNT = 4`, lane `0`
-becomes `0.5 / 4 = 0.125`, lane `1` becomes `1.5 / 4 = 0.375`, and so on —
-four evenly spaced positions across the road, each one centred in its own
-lane rather than jammed against an edge.
+**Math Concept — lane index to fraction:** `lane_to_x()` (from Week 2)
+expects a fraction from `0.0` to `1.0`, not a raw lane number. `(lane_i +
+0.5) / LANE_COUNT` converts index `lane_i` into "the middle of that lane, as
+a fraction of the whole road." With `LANE_COUNT = 4`, lane `0` becomes `0.5 /
+4 = 0.125`, lane `1` becomes `1.5 / 4 = 0.375`, and so on — four evenly
+spaced positions, each centered in its own lane instead of jammed against an
+edge.
 
-**The idea to put on the board — a list comprehension:** the `rivals = [...]`
-block is a list comprehension: "build one dictionary like *this*, for every
-`(lane_i, color)` pair in `zip(grid[1:], rival_colors)`." `zip()` pairs up
-two lists item-by-item — the first leftover lane number with the first
-sampled color, the second with the second, and so on. If this syntax is new,
-it can help to first show the *slow* way (a `for` loop appending to an empty
-list one dictionary at a time) and then show that the comprehension does the
-exact same thing in fewer lines.
+**The Concept — list comprehensions:** the `rivals = [...]` block is a list
+comprehension: "build one dictionary like *this*, for every `(lane_i,
+color)` pair in `zip(grid[1:], rival_colors)`." `zip()` pairs up two lists
+item-by-item — the first leftover lane number with the first sampled color,
+the second with the second, and so on. If this syntax is new, show the slow
+way first: a `for` loop appending to an empty list one dictionary at a time.
+Then show that the comprehension does exactly the same thing in fewer lines.
 
-**Running the game now shows three rivals lined up with you at the start,
-each in their own lane** — but they don't move toward a finish line yet, and
-there's nothing checking for one.
+**Classroom Demo:** comment out `random.shuffle(grid)` and run a few races
+back to back. The grid order stays identical every time — you always start
+in the same lane — which makes "the shuffle is what randomizes starting
+position" concrete before you put the line back.
 
 ## Step 3: Draw Lane Dividers and the Finish Line
 
@@ -115,12 +121,20 @@ dash *per lane boundary*:
                 divider_x = center_x - ROAD_WIDTH // 2 + lane_i * LANE_WIDTH
                 screen.draw.filled_rect(Rect(divider_x - 4, top, 8, strip_height), LINE)
 ```
+*Expected State: dashed lines now mark every lane boundary, instead of one
+dash down the middle of the road.*
 
-**Why `range(1, LANE_COUNT)`:** a road with `LANE_COUNT` lanes has exactly
-`LANE_COUNT - 1` *boundaries between* them (4 lanes → 3 dividers, not 4) —
-`range(1, LANE_COUNT)` produces `1, 2, 3` for `LANE_COUNT = 4`, one number
-per boundary, skipping `0` (the road's own left edge, which is already drawn
-by the shoulder/tarmac rectangles).
+**Math Concept — counting lane boundaries:** a road with `LANE_COUNT` lanes
+has exactly `LANE_COUNT - 1` boundaries *between* them (4 lanes → 3
+dividers, not 4). `range(1, LANE_COUNT)` produces `1, 2, 3` for `LANE_COUNT
+= 4` — one number per boundary, skipping `0` (the road's own left edge,
+already drawn by the shoulder/tarmac rectangles).
+
+**The Geometry:** `divider_x` starts at the road's own left edge (`center_x
+- ROAD_WIDTH // 2` — the same expression `road_left()` computes) and walks
+right by `LANE_WIDTH` pixels per boundary. Boundary `1` sits one lane-width
+in, boundary `2` sits two lane-widths in, and so on — exactly where each
+lane meets its neighbor.
 
 After the road-drawing loop (but still inside `draw()`, before the cars are
 drawn), add the finish line:
@@ -135,13 +149,17 @@ drawn), add the finish line:
             screen.draw.filled_rect(Rect(left + i, finish_y - 8, 20, 16), color)
 ```
 
-**Math note — checkered flag with a loop:** `row_at(FINISH_DISTANCE)` reuses
-last week's trick to find *where on screen* the finish line currently is —
-it's just another fixed distance, exactly like a rival's distance, converted
-to a row. The `for i in range(0, ROAD_WIDTH, 20)` loop then walks across the
-whole width of the road in 20-pixel steps, alternating white and black using
-the same `(i // 20) % 2 == 0` pattern from Week 1's dashed line — the only
-difference is it's alternating *across* the road instead of *down* it.
+**Math Concept — checkered flag with a loop:** `row_at(FINISH_DISTANCE)`
+reuses last week's trick to find *where on screen* the finish line currently
+is — it's just another fixed distance, exactly like a rival's distance,
+converted to a row. The `for i in range(0, ROAD_WIDTH, 20)` loop then walks
+across the whole width of the road in 20-pixel steps, alternating white and
+black with the same `(i // 20) % 2 == 0` pattern from Week 1's dashed line.
+The only difference is it alternates *across* the road instead of *down* it.
+
+**Classroom Demo:** change the step size from `20` to `40` in both the
+`range()` call and the rectangle width, and rerun. Bigger checker squares
+make the alternating pattern obvious without touching the underlying logic.
 
 Update the rival-drawing loop to handle a list instead of one dictionary:
 ```python
@@ -364,14 +382,13 @@ def update():
         if player.colliderect(r["actor"]):
             game_state = "crashed"
 ```
+*Expected State: a full grid of four cars, lane dividers, and a checkered
+finish line scrolling into view. Nobody's placement is tracked yet — driving
+past the finish line does nothing, and there's no way to win.*
 
-Run it and there's a full grid of four cars, lane dividers, and a real
-checkered finish line that scrolls into view — genuinely close to the
-finished game. But nobody's placement is tracked yet: driving past the
-finish line does nothing, and there's no way to actually win. The movement
-loop above is a deliberately bare-bones stand-in for what Step 5 builds —
-it's here only so the pack has somewhere to go before finish-line tracking
-exists.
+The movement loop at the end of `update()` is a deliberate placeholder —
+just enough to keep the pack moving and crashable until Step 5 replaces it
+with real finish-line tracking.
 
 ## Step 4: Turning a Number into "1ST" / "2ND" / "3RD"
 
@@ -379,19 +396,13 @@ Add this small helper function anywhere below `draw()`:
 
 ```python
 def _ordinal(n):
+    """Turns 1 into '1ST', 2 into '2ND', 3 into '3RD', 4 into '4TH', and so
+    on (11-20 are all 'TH', which is why they're special-cased first)."""
     if 10 <= n % 100 <= 20:
         return f"{n}TH"
     suffix = {1: "ST", 2: "ND", 3: "RD"}.get(n % 10, "TH")
     return f"{n}{suffix}"
 ```
-This turns 1 into '1ST', 2 into '2ND', 3 into '3RD', 4 into '4TH', and so
-on (11-20 are all 'TH', which is why they're special-cased first).
-
-**Why 11-20 need special handling:** English ordinals mostly depend on the
-*last digit* (`1st`, `2nd`, `3rd`, `4th`...), but `11th`, `12th`, and `13th`
-break that pattern — they're never "11st" or "12nd." Checking `10 <= n % 100
-<= 20` catches the whole 11-20 range (and 111-120, 211-220, and so on) before
-the last-digit rule below it ever runs.
 
 Update `draw()`'s end-of-race banner to use it:
 ```python
@@ -401,6 +412,14 @@ Update `draw()`'s end-of-race banner to use it:
         title = "YOU WIN!" if player_place == 1 else f"YOU FINISHED {_ordinal(player_place)}!"
         _banner(title, "Press SPACE to race again")
 ```
+*Expected State: no visible change — `player_place` doesn't get set until
+Step 5, so the `"won"` branch never runs yet.*
+
+**Math Concept — special-casing 11-20:** English ordinals mostly depend on
+the *last digit* (`1st`, `2nd`, `3rd`, `4th`...), but `11th`, `12th`, and
+`13th` break that pattern — they're never "11st" or "12nd." Checking `10 <=
+n % 100 <= 20` catches the whole 11-20 range (and 111-120, 211-220, and so
+on) before the last-digit rule below it ever runs.
 
 ## Step 5: Move the Whole Pack, and Track Who Finished
 
@@ -432,19 +451,24 @@ over the list, plus a check for anyone crossing the line:
 
 You'll need `player_place` added to the `global` line at the top of
 `update()`.
+*Expected State: rivals cross the finish line and register their place;
+drive across `FINISH_DISTANCE` yourself and the "YOU WIN!" / "YOU FINISHED
+Nth!" banner appears.*
 
-**Why `not r["finished"]` guards the append:** without it, a rival that's
-already crossed the line would keep re-appending itself to `race_results`
-every single frame for the rest of the race (its `distance` stays above
-`FINISH_DISTANCE` forever after crossing). The flag makes "you crossed the
-line" a one-time event per rival, exactly like a checkbox that only gets
-ticked once.
+**Teaching Note — one-time finish, reliable placement:** `not r["finished"]`
+makes crossing the line a one-time event per rival — without it, a rival
+sitting past `FINISH_DISTANCE` would re-append itself to `race_results`
+every single frame for the rest of the race. That one-time append is also
+what makes `player_place` reliable: `race_results` only ever holds rivals
+that finished *before* the current frame, so "how many rivals already
+finished" is accurate at the exact instant the player crosses — no separate
+bookkeeping needed.
 
-**The idea to put on the board:** every car — rivals and player alike —
-starts at `distance = 0` on the grid. Because `race_results` only ever
-contains rivals that finished *before* the current frame, "how many rivals
-already finished" is always accurate at the exact moment the player crosses,
-with no extra bookkeeping needed.
+**Classroom Prompt (For Fast Finishers):** two rivals could, in principle,
+cross the finish line on the same frame. `race_results.append(r)` runs in
+list order, so whichever rival comes first in the `rivals` list wins the
+tie. Ask fast finishers whether that's fair, and how they'd break the tie
+differently (distance is identical, so what else could decide it?).
 
 ## Checkpoint: Final Code for Week 3, Part 1
 
@@ -677,10 +701,12 @@ def update():
         player_place = len(race_results) + 1
         game_state = "won"
 ```
+*Expected State: a full grid of cars racing to a checkered finish line, with
+a "YOU WIN!" or "YOU FINISHED Nth!" banner on crossing it. Crashing still
+just ends the run.*
 
-**Watch for:** this file is dense. If a group is behind, it's completely
-fine to stop after Step 3 (rivals racing, no finish line yet) and pick up
-Steps 4-5 (finish line + placement) at the very start of Part 2's session
-instead — nothing about Part 2's state machine depends on exactly when the
-placement logic gets typed in, only that it's there by the time Part 2
-starts building on top of it.
+**Watch for:** this file is dense. If a group is behind, stop after Step 3
+(rivals racing, no finish line yet) and pick up Steps 4-5 (finish line +
+placement) at the very start of Part 2's session instead. Nothing about Part
+2's state machine depends on exactly when the placement logic gets typed in
+— only that it's there by the time Part 2 starts building on top of it.

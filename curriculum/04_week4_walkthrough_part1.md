@@ -1,14 +1,18 @@
 # Week 4, Part 1 Walkthrough — The Road Curves!
 
 Every week so far, `road_center_x()` has returned the exact same number no
-matter what row you passed it — the road has always been perfectly straight.
+matter what row you pass it — the road has always been perfectly straight.
 That was deliberate: `road_left()`, `road_right()`, `on_road()`,
 `on_shoulder()`, and every rival's position all ask `road_center_x()` where
-the road is, instead of assuming they know. This is the conceptually hardest
-single idea in the whole curriculum (real interpolation math) — **give it
-room, and resist the urge to rush into track design just to "finish the
-syllabus."**
+the road is, instead of assuming they know.
 
+**Concept: one seam, one change.** This part rewrites `road_center_x()` to
+read from a list of track segments instead of returning a constant. Because
+every other function already asks `road_center_x()` for the answer instead
+of computing its own, that single rewrite is the entire lesson — nothing
+else in the file changes. Budget real time for it anyway: segment-lookup
+and linear interpolation are new math, not just new code, and students need
+room to sit with that before it clicks.
 
 ## Step 1: A Short Demo Track
 
@@ -27,23 +31,17 @@ TRACK = [
 
 FINISH_DISTANCE = sum(length for length, _ in TRACK)
 ```
+*Expected State: no visible change — `TRACK` exists, but nothing reads from
+it until Step 3.*
 
-This gives us a short demo course: drive straight, curve left, then curve back 
-to center. The two values in each entry define a stretch's length and the
-location the center of the track should reach by the end of it. CENTER is 
-just a starting point to measure curves relative to, so the whole track can shift 
-if WIDTH changes.
-
-**Why `FINISH_DISTANCE = sum(...)` instead of a fixed number:** this
-guarantees the described curves cover the *entire* race — there's no
-leftover straight stretch after `TRACK` runs out for the finish line to sit
-in. Worth calling out explicitly: if a track were ever *shorter* than
-`FINISH_DISTANCE`, the road would hold its last curve's centre steady for
-the remainder (Step 2 explains exactly why) — which would look like a bug,
-but is actually intentional fallback behavior.
-
-**Running the game shows no visible change yet** — `TRACK` exists, but
-nothing reads from it until Step 3.
+**Teaching Note:** each entry in `TRACK` is `(length, end_center)` — how far
+this stretch runs, and where the road's center should sit by the end of it.
+This demo track is drive straight, curve left, curve back to center.
+`CENTER` is just a reference point for measuring curves against, so the
+whole track shifts automatically if `WIDTH` ever changes. `FINISH_DISTANCE
+= sum(length for length, _ in TRACK)` puts the finish line at the exact end
+of the last described segment, so the race never runs past `TRACK` into a
+stretch with no curve defined for it.
 
 ## Step 2: Walking the Track to Find "Which Segment Am I In?"
 
@@ -51,6 +49,9 @@ Add this function anywhere above `road_center_x()`:
 
 ```python
 def _segment_at(dist):
+    """Find which TRACK segment covers `dist`, and how far through it we
+    are (as a fraction from 0.0 at the start of the segment to 1.0 at the
+    end). Returns (segment_start_center, segment_end_center, fraction)."""
     start_center = CENTER
     covered = 0
     for length, end_center in TRACK:
@@ -61,32 +62,35 @@ def _segment_at(dist):
         start_center = end_center
     return start_center, start_center, 1.0
 ```
+*Expected State: no visible change — this function isn't called from
+anywhere yet.*
 
-This function finds which TRACK segment covers `dist`, and how far through
-it we are (as a fraction from 0.0 at the start of the segment to 1.0 at the
-end), returning `(segment_start_center, segment_end_center, fraction)`. Past
-the last described segment, we just hold the final center steady.
+**Math Concept — walking a list of lengths to find a position:** `covered`
+tracks how much of the track has been accounted for so far, starting at
+`0`. For each segment, ask "does `dist` fall before this segment ends
+(`covered + length`)?"
+- If yes, this is the segment: `fraction` is how far into it `dist` sits,
+  from `0.0` (just entered) to `1.0` (about to leave).
+- If no, add this segment's `length` to `covered` and move to the next
+  one, carrying its `end_center` forward as the next segment's
+  `start_center` — that hand-off is what makes the curve continuous
+  instead of jumping between segments.
 
-**Math note — walking a list of lengths to find a position.** `covered`
-tracks "how much of the track we've accounted for so far," starting at `0`.
-For each segment, we ask: "does `dist` fall before the end of THIS segment
-(`covered + length`)?" If yes, we've found it — `fraction` is how far into
-*this* segment `dist` sits, from `0.0` (just entered it) to `1.0` (about to
-leave it). If no, we add this segment's `length` to `covered` and move on to
-the next one, carrying its `end_center` forward as the *next* segment's
-`start_center` — which is what makes the curve continuous instead of jumping
-between segments.
-
-Try it with our 3-segment demo track and `dist = 500`:
+Walk it by hand with the demo track and `dist = 500`:
 - Segment 1 is `(400, CENTER)`. Is `500 < 0 + 400`? No. `covered` becomes
   `400`, `start_center` becomes `CENTER`.
-- Segment 2 is `(400, CENTER - 140)`. Is `500 < 400 + 400 = 800`? Yes!
-  `fraction = (500 - 400) / 400 = 0.25` — we're a quarter of the way through
-  the curve-left segment. Return `(CENTER, CENTER - 140, 0.25)`.
+- Segment 2 is `(400, CENTER - 140)`. Is `500 < 400 + 400 = 800`? Yes.
+  `fraction = (500 - 400) / 400 = 0.25` — a quarter of the way through the
+  curve-left segment. Returns `(CENTER, CENTER - 140, 0.25)`.
 
-If `dist` is ever larger than the whole track's length (`1200` here), the
-loop finishes without ever returning — that's what the final fallback line
-is for, holding the very last centre steady forever after.
+The final line, `return start_center, start_center, 1.0`, only runs once
+`dist` is past the whole track's length (`1200` here) — the loop finished
+without ever returning, so it holds the last segment's center steady
+instead of crashing.
+
+**Classroom Prompt (For Fast Finishers):** trace `_segment_at(1300)` by
+hand against this demo track before running it. Which branch returns, and
+what does it return?
 
 ## Step 3: Linear Interpolation
 
@@ -94,43 +98,53 @@ Add this function right after `_segment_at()`:
 
 ```python
 def center_x_at_distance(dist):
+    """Where should the road's centre be, at this distance along the track?
+    We slide smoothly from the segment's starting centre to its ending
+    centre as `fraction` goes from 0 to 1 - this is called LINEAR
+    INTERPOLATION, and it's the same idea as "80% of the way between A and
+    B is A + 0.8 * (B - A)."
+    """
     start_center, end_center, fraction = _segment_at(dist)
     return start_center + (end_center - start_center) * fraction
 ```
+*Expected State: no visible change — this function isn't called from
+anywhere yet either.*
 
-Where should the road's center be, at this distance along the track?
-We slide smoothly from the segment's starting centre to its ending
-centre as `fraction` goes from 0 to 1 - this is called LINEAR
-INTERPOLATION, and it's the same idea as "80% of the way between A and
-B is A + 0.8 * (B - A)."
+**Math Concept — linear interpolation:** `end_center - start_center` is the
+total distance to travel across the whole segment. Multiplying that by
+`fraction` scales it down to "how far we should have travelled by now."
+Adding that onto `start_center` gives the actual position — the docstring's
+"80% of the way from A to B" formula, applied to road centers instead of
+two arbitrary points.
 
-**Math note:** `end_center - start_center` is
-the total distance to travel across the whole segment. Multiplying that by
-`fraction` scales it down to "how far we should have travelled by *now*."
-Adding that onto `start_center` gives the actual position. Concretely, using
-the `(CENTER, CENTER - 140, 0.25)` result from Step 2 (say `CENTER = 400`):
-`center_x_at_distance = 400 + (260 - 400) * 0.25 = 400 + (-140 * 0.25) = 400
-- 35 = 365`. A quarter of the way through a curve that eventually reaches
-`260`, the road's centre is at `365` — a quarter of the way there. At
-`fraction = 0.0` this formula always returns exactly `start_center`; at
-`fraction = 1.0` it always returns exactly `end_center` — the curve is
+Concretely, using the `(CENTER, CENTER - 140, 0.25)` result from Step 2
+(say `CENTER = 400`): `center_x_at_distance = 400 + (260 - 400) * 0.25 =
+400 - 35 = 365`. A quarter of the way through a curve that eventually
+reaches `260`, the road's center sits at `365` — a quarter of the way
+there. At `fraction = 0.0` this always returns exactly `start_center`; at
+`fraction = 1.0` it always returns exactly `end_center`, so the curve is
 smooth and continuous the whole way between.
 
 ## Step 4: A Derived Yes/No From the Same Data
 
 ```python
 def is_turn_at(dist):
+    """True if this point in the track is part of a curve (its segment's
+    start and end centres are different) rather than a straight."""
     start_center, end_center, _ = _segment_at(dist)
     return start_center != end_center
 ```
+*Expected State: no visible change — `is_turn_at()` isn't called from
+anywhere yet.*
 
-This function returns True if this point in the track is part of a curve 
-(its segment's start and end centres are different) rather than a straight.
+**Teaching Note:** `_segment_at()` already knows everything needed to
+answer "is this a turn?" — a segment is a turn exactly when its start and
+end centers differ. `is_turn_at()` doesn't recompute anything; it just asks
+the same question a different way.
 
-**Why this doesn't need its own logic:** `_segment_at()` already knows
-everything needed to answer "is this a turn?" — a segment is a turn exactly
-when its start and end centres differ. `is_turn_at()` doesn't recompute
-anything; it just asks the question a different way.
+**Classroom Prompt (For Fast Finishers):** add a fourth entry to `TRACK`
+that curves back out to the right. Before running it, predict which of the
+four segments `is_turn_at()` will report as a turn versus a straight.
 
 ## Mid-Session Checkpoint: The Math Works, Nothing Uses It Yet
 
@@ -450,14 +464,14 @@ def update():
             player_place = len(race_results) + 1
             game_state = "won"
 ```
+*Expected State: nothing looks different from last week — `road_center_x()`
+still returns `WIDTH // 2`, so the road is as straight as ever.*
 
-Run it and nothing looks different from last week — `road_center_x()` still
-just returns `WIDTH // 2`, so the road is as straight as ever. But
-`_segment_at()`, `center_x_at_distance()`, and `is_turn_at()` are all fully
-built and correct; you could call `center_x_at_distance(500)` from a REPL
-right now and get a real answer. The entire curve-math engine exists and
-works — it's just not connected to anything on screen yet. That's Step 5,
-next.
+`_segment_at()`, `center_x_at_distance()`, and `is_turn_at()` are fully
+built and correct even though nothing on screen uses them yet — call
+`center_x_at_distance(500)` from a REPL right now and it returns a real
+answer. The curve-math engine exists and works; it's just not wired up yet.
+Step 5 wires it up.
 
 ## Step 5: The One Line That Changes Everything
 
@@ -467,24 +481,20 @@ Replace `road_center_x()`'s body:
 def road_center_x(y):
     return center_x_at_distance(dist_at(y))
 ```
+*Expected State: the road curves left and back, and every rival tracks the
+bend automatically — no other code changed.*
 
-Every previous file had `return WIDTH // 2` here. Now it asks the TRACK
-where the road should be, at whatever distance is being drawn at row `y`.
-road_left(), road_right(), on_road(), on_shoulder(), and every rival's
-lane_to_x() call all still call THIS function - none of them changed.
-
-**This is the whole payoff of the last three weeks.** Have students scroll
-through the rest of the file — or just count: exactly one function's *body*
-changed. `road_left()`, `road_right()`, `on_road()`, `on_shoulder()`, every
-rival's `lane_to_x()` call, and the entire drawing loop are all completely
-unmodified, and yet running the game now shows a curving road, with every
-rival following the bend automatically. That's the payoff for insisting,
-all the way back in Week 1, that everything ask `road_center_x()` instead of
+**The Concept:** every previous file had `return WIDTH // 2` here. Now it
+asks `TRACK`, through `center_x_at_distance()`, where the road should be at
+whatever distance is being drawn at row `y`. `road_left()`, `road_right()`,
+`on_road()`, `on_shoulder()`, and every rival's `lane_to_x()` call all still
+call this same function — none of them changed. That's the payoff of
+insisting, since Week 1, that everything ask `road_center_x()` instead of
 assuming it knew the answer.
 
-**Running the game now shows the road bending left and back — and every
-rival tracking the curve right along with it, with zero changes to any
-rival code.**
+**Classroom Demo:** have the class scroll through the rest of the file and
+count how many function *bodies* changed to make the road curve. The answer
+is one — this one.
 
 ## Step 6: Warn About Turns
 
@@ -495,15 +505,20 @@ Add one more HUD line, in `draw()`:
         screen.draw.text("TURN - stay on the road!", midtop=(WIDTH // 2, 10),
                          fontsize=32, color=(255, 220, 120))
 ```
+*Expected State: a yellow "TURN - stay on the road!" warning appears near
+the top of the screen only while `distance_traveled` sits inside a curved
+segment.*
 
-(This should sit as an `elif` alongside the existing `"CRASHED! Recovering"`
-check, since only one of those two messages should show at a time.)
+**Teaching Note:** this sits as an `elif` alongside the existing "CRASHED!
+Recovering" check, since only one banner should show at a time. Off-road
+physics don't change on a curve — the same shoulder and rough-speed caps
+from Week 1 apply, unmodified. This text is a heads-up, not a new penalty.
+Turns are just easier to drift off of, since the road itself is moving out
+from under the car.
 
-**Note on what this warning does — and doesn't — mean:** off-road behaves
-exactly the same on a curve as on a straight (the same shoulder/rough speed
-caps from Week 1, unchanged). This text is purely a heads-up, not a new
-penalty — turns are just *easier* to drift off of, since the road itself is
-moving out from under you.
+**Classroom Demo:** temporarily change that `elif` to a plain `if` and
+crash while inside a turn — both banners try to draw at once and overlap.
+Restore the `elif` and show the fix.
 
 ## Checkpoint: Final Code for Week 4, Part 1
 
@@ -827,10 +842,14 @@ def update():
             player_place = len(race_results) + 1
             game_state = "won"
 ```
+*Expected State: player and rivals race down a curving three-segment track
+— straight, left bend, straight — with the TURN warning showing during the
+bend and every other rule (speed, shoulders, crashes, finishing) unchanged
+from Week 3.*
 
 **Watch for:** if a custom `TRACK` a student writes is shorter than
-`FINISH_DISTANCE`, the road will hold its last curve's centre steady for the
-rest of the race — that's `_segment_at()`'s documented fallback from Step 2,
-not a bug, but it can look like one. This file's `TRACK` is intentionally
-tiny (three segments) so the new idea is easy to see in isolation; Part 2
-swaps in a full multi-turn lap using the exact same mechanism.
+`FINISH_DISTANCE`, the road holds its last curve's center steady for the
+rest of the race — that's `_segment_at()`'s fallback from Step 2, not a
+bug, but it can look like one. This file's `TRACK` is intentionally tiny
+(three segments) so the new idea is easy to see in isolation; Part 2 swaps
+in a full multi-turn lap using the exact same mechanism.

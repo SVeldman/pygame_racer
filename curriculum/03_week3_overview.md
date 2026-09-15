@@ -1,66 +1,44 @@
-# Week 3 — Instructor Overview
+# Week 3 Overview: Scaling Up to a Real Race
 
-## Run it
+Welcome to Week 3! This week, we transition our 1v1 prototype into a full, multi-rival racing grid. There are some heavy stretches of coding this week, but help your students hang in there .This is where our project starts to feel like a classic arcade game, which should be a great payoff for their hard work.
 
-```bash
-cd project
-pgzrun 03_week3_part1.py       # or 03_week3_part2.py
-```
+We tackle two major upgrades: expanding from one rival car to a multi-car starting grid, and evolving our basic crash rule into a dynamic, state-driven race loop featuring a pre-race countdown and a time-penalty recovery system.
 
-## Part 1 — `03_week3_part1.py`: A pack of rivals, a grid, a finish line
+**Quick Note on Pacing:** If some of the heftier code blocks bogged the class down last week, consider creating a .txt file with some of the larger/trickier chunks and load it onto the computers for students to copy/paste from. Don't lean on this too much, but it is more important that they wrap their heads around the *concepts* and keep having fun than that they write every single line by hand.
 
-**Goal for students:** race several cars at once, from a shared starting
-line, to an actual finish line, and find out what place they came in.
+---
 
-| Concept | Where it shows up |
-|---|---|
-| A LIST of dictionaries (scaling up from one rival to many) | `rivals = [...]` |
-| A list comprehension | the `rivals = [...for lane_i in grid[1:]]` block |
-| `random.shuffle` for a fair, varied starting order | `new_race()` |
-| `LANE_COUNT` / `WIDTH` computed from `NUM_RIVALS`, not hand-tuned | the "Tuning knobs" block |
-| Looping over a list in both `update()` and `draw()` | rival movement, rival drawing |
-| Deriving a rank from a list built up over time | `race_results`, `player_place` |
-| String formatting a number into "1ST"/"2ND"/"3RD" | `_ordinal()` |
+## Part 1: A Pack of Rivals, a Grid, and a Finish Line (`03_week3_part1.py`)
 
-**The idea to put on the board:** every car - rivals and player - starts at
-`distance = 0`. `LANE_COUNT = NUM_RIVALS + 1` guarantees there's exactly
-enough room for everyone to get their own lane with no overlap.
-`random.shuffle` on the list of lane numbers is what makes the grid order
-different every race.
+**The Student Goal:** Race against a full grid of rival cars from a randomized starting lineup, cross a literal finish line, and calculate their final placement (1st, 2nd, 3rd, etc.).
 
-**Watch for:** this is the heaviest single file in the whole curriculum -
-more new vocabulary lands here than in any other lesson (dicts, lists of
-dicts, list comprehensions, `random`, relative speed, an inverse function,
-finish-line rendering, string formatting). Consider splitting your own
-delivery: spawn + movement first, then finish line + placement, using
-`03_week3_part1.py` itself as the "answer key" checkpoint if the class runs
-long.
+This session is the heaviest structural lift of the curriculum. We shift from managing individual floating variables to working with data collections (specifically a Python list of dictionaries).
 
-## Part 2 — `03_week3_part2.py`: A proper start, and recovering from a crash
+### Key Themes to Track:
+* **The Starting Grid:** Every car starts at `distance = 0`. To prevent cars from awkwardly overlapping at the starting line, we derive the track lanes dynamically: `LANE_COUNT = NUM_RIVALS + 1`. We then use `random.shuffle()` on the list of available lane indices to guarantee a fresh, randomized starting line-up every single race.
+* **Looping Through the Pack:** Because all opponents are bundled into a single `rivals` list, students will write `for` loops in both `update()` and `draw()` to handle movement, positioning, and rendering for the entire pack simultaneously. 
+* **Classroom Delivery:** More new vocabulary and programming structures land in this week than any other lesson (lists of dictionaries, list comprehensions, `random`, and string formatting for the final placement ranking). **Important Note:** If the class feels overwhelmed, explicitly split the delivery. Focus entirely on spawning and moving the pack first. Take a pause and let the experienced students play their game a little while you help any stragglers catch up, then tackle the finish line logic and ranking math.
 
-**Goal for students:** a "READY TO RACE?" screen, a 3-2-1-GO countdown, and a
-crash that costs you time instead of ending your run.
+---
 
-| Concept | Where it shows up |
-|---|---|
-| Growing a state machine from 3 states to 5 | `game_state` comment at the top of the file |
-| Frame-based timers (pgzero runs at 60 fps by default) | `COUNTDOWN_FRAMES`, `FREEZE_FRAMES` |
-| Early `return` to keep each state's logic separate | the top of `update()` |
-| A blink effect from a modulo on a timer | `(freeze_timer // 6) % 2 == 0` |
+## Part 2: Countdowns and Crash Recovery (`03_week3_part2.py`)
 
-**The idea to put on the board:** for every state, ask two questions - "what
-can happen from here?" and "what causes leaving this state?" `"waiting"`
-leaves on SPACE. `"countdown"` and `"frozen"` leave when their timer hits
-zero - no key needed. `"racing"` leaves on a crash (to `"frozen"`) or
-reaching the finish (to `"won"`). Walking through that table on the board
-before touching code helps a lot here.
+**The Student Goal:** Build a "Ready to Race?" title screen, a 3-2-1-GO countdown, and a crash penalty that costs the player time instead of ending the game.
 
-**Watch for:** the biggest behavior change from Part 1 is that rivals now
-keep moving while YOU are frozen - make sure students see that a crash still
-costs real ground, it just isn't fatal anymore.
+Even though right now the cars are all just driving in a straight line, crashes will become more common next week when we add curves to the road. We expand our basic 2-state game into 5 states (`"waiting"`, `"countdown"`, `"racing"`, `"frozen"`, and `"won"`).
 
-## Pacing
+### Key Themes to Track:
+* **The State Machine Logic:** If time allows, map out the states on a whiteboard. For each state, ask the class two practical questions: *"What can a player do here?"* and *"What event triggers us to leave this state?"* For example, `"waiting"` requires a keypress (SPACE) to leave, whereas `"countdown"` and `"frozen"` rely purely on frame-based timers ticking down to zero. This is a valuable programming lesson and a great concept to spend time on if students need a breather after the heavy coding in part 1.
+* **Visualizing the Crash:** When the player collides with a rival, we switch the state to `"frozen"`, start a timer, and use a clever math trick—integer division mixed with a modulo on the frame timer (`(freeze_timer // 6) % 2 == 0`)—to make the player's car blink.
+* **The Real Penalty:** While the player's car is locked in the `"frozen"` state, the AI rivals *keep driving forward*. A crash is no longer a frustrating "Game Over" screen, but it costs significant ground on the leaderboard, mimicking real racing games.
 
-Part 1 (~25-30 min) then Part 2 (~20-25 min). If Part 1 overruns, Part 2's
-state-machine work can spill into the start of Week 4 without breaking
-anything - Week 4 builds on Part 2's finished file either way.
+---
+
+## Pacing & Classroom Flow
+
+Because of the more complex concepts in Part 1, expect the first half of the session to take up a significant chunk of your time:
+* **Part 1 (Rival Packs & Grids):** ~25 to 30 minutes (heavy data structure focus).
+* **Part 2 (State Machines & Countdown Timers):** ~20 to 25 minutes of logic building.
+* **Open Buffer:** ~5 to 10 minutes.
+
+**Note on Timing:** Do not compromise on Part 1's grid architecture just to rush into timers. If your class overruns during the list of dictionaries section, Part 2's state-machine implementation can spill into the beginning of Week 4 if you need (week 4 is intentionally designed with time for experimentation and customization).

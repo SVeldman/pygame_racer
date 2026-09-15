@@ -1,11 +1,10 @@
 # Week 2, Part 2 Walkthrough — You Meet Your First Rival
 
 Part 1 already has the road scrolling, throttle/brake, and
-`distance_traveled`. This session uses that same distance to give another
-car its own, independent position — the single most important trick in the
-whole game. There's no finish line and no "winning" yet; the goal is simply
-to share the road with one other car and not hit it.
-
+`distance_traveled`. This session reuses that same distance to give another
+car its own, independent position on the road. There's no finish line and
+no "winning" yet — the goal is simply to share the road with one other car
+and not hit it.
 
 ## Step 1: New Knobs, and a Computed Window Size
 
@@ -48,17 +47,25 @@ the block above:
 GRASS_MARGIN = 200        # how much grass to leave visible on each side
 WIDTH = ROAD_WIDTH + 2 * SHOULDER_WIDTH + 2 * GRASS_MARGIN
 ```
+*Expected State: the same game as before — the window may render at a
+slightly different width than 800px depending on the formula above, but
+there's still no rival on screen.*
 
-**Why `ROAD_WIDTH` is a formula now:** `ROAD_WIDTH` used to be a flat number
-(`220`). Now it's `LANE_WIDTH * LANE_COUNT` — the road is exactly as many
-110-pixel lanes as there are cars needing one. With `NUM_RIVALS = 1`,
-`LANE_COUNT = 2`, so `ROAD_WIDTH = 220`, the same value as before — nothing
-*visually* changes yet, but the number is no longer an accident; it's
-derived from how many cars are racing.
+**Teaching Note:** two numbers changed from flat constants to formulas.
+- `ROAD_WIDTH` used to be a flat `220`. Now it's `LANE_WIDTH * LANE_COUNT` —
+  the road is exactly as many 110-pixel lanes as there are cars needing
+  one. With `NUM_RIVALS = 1`, `LANE_COUNT = 2`, so `ROAD_WIDTH` still comes
+  out to `220` — nothing visually changes yet, but the number is now
+  derived from how many cars are racing instead of typed by hand.
+- `WIDTH` is now `ROAD_WIDTH + 2 * SHOULDER_WIDTH + 2 * GRASS_MARGIN`
+  instead of a flat `800`. Next week, when `NUM_RIVALS` grows and the road
+  needs more lanes, the window resizes itself automatically — no
+  hand-editing `WIDTH` every time the lane count changes.
 
-**At this point, running the game shows the same game as before** (the
-window might be a slightly different width than `800` depending on the
-formula above, but there's still no rival on screen).
+**Classroom Prompt (For Fast Finishers):** have early finishers hand-compute
+`LANE_COUNT`, `ROAD_WIDTH`, and `WIDTH` for `NUM_RIVALS = 3` before running
+anything. It's a quick check for whether the formulas actually landed,
+versus just being trusted to work.
 
 ## Step 2: A State Variable, and Turning a Lane Number into a Pixel
 
@@ -66,10 +73,6 @@ Add a new state variable next to `player_speed`:
 ```python
 game_state = "racing"          # "racing" | "crashed"
 ```
-Now that a rival can crash into you, `update()` needs a way to remember
-"the race has stopped" instead of just letting `player_speed` keep changing
-— that's what `game_state` tracks, and later steps check it before moving
-anything.
 
 And this new function, right after `on_shoulder()`:
 ```python
@@ -78,33 +81,39 @@ def lane_to_x(lane, y):
     an actual X pixel position, at screen row y."""
     return road_left(y) + lane * ROAD_WIDTH
 ```
+*Expected State: no visible change — both additions are groundwork for the
+rival that shows up in Step 4.*
 
-**Why a fraction, not a lane number?** `lane_to_x(0.0, y)` lands exactly on
-the road's left edge, `lane_to_x(1.0, y)` on the right edge, and `0.5` is
-dead centre — any car's horizontal position can be described this way
-without caring how wide the road is in pixels. That's what lets a rival's
-`"lane"` value stay meaningful even later, when `ROAD_WIDTH` grows as more
-rivals join.
+**Teaching Note:** `game_state` gives `update()` a way to remember "the race
+has stopped." Once a rival can crash into you, something has to stop
+`player_speed` and the rival's movement from continuing to change after a
+crash — later steps check this variable before touching anything.
+
+**The Concept:** why a fraction, not a lane number? `lane_to_x(0.0, y)`
+lands exactly on the road's left edge, `lane_to_x(1.0, y)` on the right
+edge, and `0.5` is dead center — a car's horizontal position can be
+described this way without caring how wide the road is in pixels. That's
+what lets a rival's `"lane"` value stay meaningful even later, when
+`ROAD_WIDTH` grows as more rivals join.
 
 ## Step 3: `row_at()` — the Trick Solved Backwards
 
-Add this function right after `dist_at()`, and read the comment above it
-carefully:
+Add this function right after `dist_at()`:
 
 ```python
 def row_at(dist):
-    """The exact opposite question: which screen row is track distance
-    `dist` drawn at, right now? This is `dist_at` solved backwards.
-    """
+    """The exact opposite of dist_at(): which screen row is track distance
+    `dist` drawn at, right now?"""
     return PLAYER_ROW - (dist - distance_traveled)
 ```
+*Expected State: no visible change — `row_at()` has no caller until Step 4
+builds the rival.*
 
-**Math note — solving for the other variable.** Recall from Part 1:
-`dist_at(y) = distance_traveled + (PLAYER_ROW - y)`. That answers "given a
-screen row, what distance is drawn there?" But a rival doesn't have a screen
-row to start with — it has its own *distance*, and we need to work out
-*where on screen* that puts it. That means we need the same equation solved
-for `y` instead of for the distance. A little algebra:
+**Math Concept — solving for the other variable:** `dist_at(y) =
+distance_traveled + (PLAYER_ROW - y)` answers "given a screen row, what
+distance is drawn there?" A rival doesn't have a screen row to start with
+— it has its own distance, and we need the row that distance lands on.
+That means solving the same equation for `y` instead of for the distance:
 
 ```
 dist = distance_traveled + (PLAYER_ROW - y)
@@ -112,11 +121,11 @@ dist - distance_traveled = PLAYER_ROW - y
 y = PLAYER_ROW - (dist - distance_traveled)
 ```
 
-That last line is exactly `row_at()`. Try a number: if `distance_traveled =
-1000` and a rival's `dist = 1000` too (right next to you), `row_at(1000) =
-480 - (1000 - 1000) = 480` — drawn right at `PLAYER_ROW`, i.e. right next to
-your own car. If the rival is 50 metres ahead (`dist = 1050`), `row_at(1050)
-= 480 - 50 = 430` — 50 pixels *higher* on screen, i.e. further ahead, which
+That last line is `row_at()`. Try a number: if `distance_traveled = 1000`
+and a rival's `dist = 1000` too (right next to you), `row_at(1000) = 480 -
+(1000 - 1000) = 480` — drawn right at `PLAYER_ROW`, i.e. right next to your
+own car. If the rival is 50 metres ahead (`dist = 1050`), `row_at(1050) =
+480 - 50 = 430` — 50 pixels *higher* on screen, i.e. further ahead, which
 matches intuition.
 
 ## Step 4: Build the Rival with `new_race()`
@@ -141,20 +150,26 @@ def new_race():
 
 new_race()
 ```
+*Expected State: no visible change yet — `new_race()` builds the rival
+dict, but `draw()` doesn't show it until Step 5.*
 
-**Why a function, instead of just setting these variables directly at the
-top of the file?** Because we're going to need to reset the race after a
+**Teaching Note:** why a function, instead of just setting these variables
+directly at the top of the file? Because the race needs to reset after a
 crash — pressing SPACE (added in Step 6) calls this same function again.
-Wrapping "set everything back to a fresh start" in one function means there's
-exactly one place that logic lives, whether it's the very first race or the
-fifth retry.
+Wrapping "set everything back to a fresh start" in one function means
+there's exactly one place that logic lives, whether it's the first race or
+the fifth retry.
 
-**Why a dictionary for the rival?** `rival` bundles four related values —
-its sprite, its distance, its lane, and its speed — into one object instead
-of four separate loose variables (`rival_actor`, `rival_distance`, and so
-on). Next week, when there's more than one rival, this same shape becomes
-one entry in a *list* of dictionaries — this is the small-scale version of
-that idea.
+**The Concept:** why a dictionary for the rival? `rival` bundles four
+related values — its sprite, its distance, its lane, and its speed — into
+one object instead of four separate loose variables (`rival_actor`,
+`rival_distance`, and so on). Next week, when there's more than one rival,
+this same shape becomes one entry in a *list* of dictionaries — this is the
+small-scale version of that idea.
+
+**Classroom Demo:** restart the script a few times and point out the
+rival's sprite color changes each run — that's `random.choice(RIVAL_COLORS)`
+picking a new image every call to `new_race()`.
 
 ## Step 5: Draw the Rival, and a Crash Banner
 
@@ -179,6 +194,20 @@ def _banner(title, subtitle):
     screen.draw.text(subtitle, center=(WIDTH // 2, HEIGHT // 2 + 30),
                      fontsize=30, color="white")
 ```
+*Expected State: the rival's sprite is now visible on screen — still
+stationary, since `update()` doesn't move it yet. The "CRASHED!" banner
+exists in code but never appears, since `game_state` never becomes
+`"crashed"` until Step 6.*
+
+**Teaching Note:** the rival is drawn before the player, the same ordering
+rule as Week 1's grass-before-car draw order — whichever `.draw()` call
+runs last ends up on top if the two sprites ever overlap.
+
+**The Geometry:** the banner box is `120` pixels tall, so it's centered
+vertically by starting `60` pixels above the middle of the screen
+(`HEIGHT // 2 - 60`). The title and subtitle text use `center=` instead of
+`topleft=`, so pgzero centers each string horizontally on `WIDTH // 2` —
+no manual text-width math needed.
 
 ## Mid-Session Checkpoint: A Rival That Just... Sits There
 
@@ -348,13 +377,13 @@ def update():
 
     distance_traveled += player_speed
 ```
+*Expected State: the rival is visible for the first time — parked in its
+lane, 500m up the road — but it never moves, and driving straight through
+it does nothing at all. `new_race()` builds the rival dict and `draw()`
+shows it, but `update()` doesn't know it exists yet.*
 
-Run it now and the rival is visible for the first time — parked in its lane,
-500m up the road — but it never moves, and driving straight through it does
-nothing at all. That's exactly what's expected: `new_race()` builds the
-rival dict and `draw()` shows it, but `update()` doesn't know it exists yet.
-Step 6 is what makes it move (by its own `base_speed`) and makes it possible
-to crash into.
+**Up Next:** Step 6 makes the rival move (by its own `base_speed`) and
+makes it possible to crash into.
 
 ## Step 6: Relative Speed, and Handling a Crash
 
@@ -368,13 +397,16 @@ the very top of the function body (after the `global` line):
         return
 ```
 
-**Why `return` here:** once crashed, none of the driving code below should
-run at all — the car shouldn't keep accelerating or the rival keep moving
-while a "CRASHED!" banner is up. `return` exits the function immediately,
-and the only thing checked is whether SPACE was pressed to start over.
+**Teaching Note:** once crashed, none of the driving code below should run
+at all — the car shouldn't keep accelerating, and the rival shouldn't keep
+moving, while a "CRASHED!" banner is up. `return` exits the function
+immediately; the only thing still checked is whether SPACE was pressed to
+start over.
 
 Then, at the very end of `update()` (after `distance_traveled +=
-player_speed`), add the rival's own movement and the collision check:
+player_speed`), add the rival's own movement and the collision check.
+You'll also need to add `game_state` to the `global` line at the top of
+`update()`.
 
 ```python
     # ---------------------------------------------------------------------
@@ -401,23 +433,28 @@ player_speed`), add the rival's own movement and the collision check:
     if player.colliderect(rival["actor"]):
         game_state = "crashed"
 ```
+*Expected State: the rival now drives up the road under its own power —
+catch up to it and you pass it, fall behind and it pulls away. Touching it
+ends the run with a "CRASHED!" banner, and SPACE starts a new race.*
 
-You'll need `game_state` added to the `global` line at the top of `update()`.
+**The Concept:** the rival never "knows" where you are, and nothing steers
+it toward or away from you. It just adds `base_speed` to its own distance
+every frame, at a constant rate. `row_at()` converts the *gap* between that
+distance and yours into a screen position — speed up and the gap shrinks,
+so the rival visibly comes toward you and slides past; slow down and the
+gap grows, so it pulls away. That single comparison is the entire "AI" for
+every opponent in this project, all the way through Week 5.
 
-**The idea to sit with:** the rival never "knows" where you are, and nothing
-is steering it toward or away from you. It just keeps adding `base_speed` to
-its own distance, forever, at a constant rate. Every frame, `row_at()`
-converts the *gap* between that distance and yours into a screen position.
-Speed up, and the gap shrinks — the rival visibly comes toward you and slides
-past. Slow down, and the gap grows — it pulls away. That single comparison
-is the entire "AI" for every opponent in this whole project, all the way
-through Week 5.
+**Classroom Demo:** bump the rival's `base_speed` in `new_race()` past
+`MAX_SPEED` and run it — the rival pulls away no matter how hard the class
+accelerates, a quick way to show the comparison is just two numbers, not
+real steering.
 
 ## Checkpoint: Final Code for Week 2, Part 2
 
-The full script should now match `02_week2_part2.py` — one rival, sharing the
-road with its own lane, moving by relative speed, with a crash ending the
-run and SPACE starting over.
+The full script should now match `02_week2_part2.py` — one rival, sharing
+the road with its own lane, moving by relative speed, with a crash ending
+the run and SPACE starting over.
 
 ```python
 import random
@@ -595,9 +632,13 @@ def update():
     if player.colliderect(rival["actor"]):
         game_state = "crashed"
 ```
+*Expected State: a full drive with one rival — it moves under its own
+speed, you can catch and pass it or fall behind, colliding ends the run
+with a banner, and SPACE restarts. Still no finish line: the run only ends
+by crashing, not by reaching a goal.*
 
-**Watch for:** `WIDTH` is a formula now, not a plain number — that matters a
-lot starting next week when `NUM_RIVALS` grows past `1` and the window needs
+**Up Next:** `WIDTH` is a formula now, not a plain number — that matters
+starting next week, when `NUM_RIVALS` grows past `1` and the window needs
 to get wider to fit more lanes automatically. There's still no finish line
-and no "winning" — that's next week, once there's a real pack of rivals to
-place, not just one.
+and no "winning" — that arrives next week, once there's a real pack of
+rivals to place, not just one.
