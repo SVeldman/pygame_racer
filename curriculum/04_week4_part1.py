@@ -67,7 +67,7 @@ TRACK = [
     (400, CENTER),          # curve back to the middle
 ]
 # The finish line sits at the END of the track we just described, so every
-# section of the race has a defined curve - there's nothing "after" the track
+# sections of the race has a defined curve - there's nothing "after" the track
 # for the finish line to sit in.
 FINISH_DISTANCE = sum(length for length, _ in TRACK)
 
