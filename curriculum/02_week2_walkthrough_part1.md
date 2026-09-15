@@ -68,7 +68,7 @@ screen," for anything that needs to draw at that distance.
 `dist_at(y)` answers one question: "given what `distance_traveled` is right
 now, what course distance is showing at this row of the screen?"
 
-Work through it with `PLAYER_ROW = 480` and `distance_traveled = 1000`:
+For example with `PLAYER_ROW = 480` and `distance_traveled = 1000`:
 - At `y = 480` (the player's own row): `dist_at(480) = 1000 + (480 - 480) =
   1000`. The player's row shows the player's own current distance.
 - At `y = 380` (100 pixels higher, i.e. further ahead): `dist_at(380) = 1000
@@ -142,7 +142,7 @@ set equal to `DASH_PERIOD`? What if it's set larger? (Larger than
 `DASH_PERIOD` produces a solid, undashed line — the "gap" portion of the
 pattern never occurs.)
 
-## Mid-Session Checkpoint: The Scrolling Machinery, Not Yet Turning
+## Mid-Session Checkpoint: The Scrolling Code in Place, But No Visible Changes
 
 At this stage, the full Python script should look something like this:
 
