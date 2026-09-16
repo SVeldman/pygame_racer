@@ -59,24 +59,24 @@ LINE = (240, 240, 240)    # near-white - the dashed centre line
 # else in the file will need to change when that happens, because
 # everything else already asks this function where the road is instead of
 # assuming it knows.
-def road_center_x(row):
-    """X position of the MIDDLE of the road at a given screen row (y value).
+def road_center_x(y):
+    """X position of the MIDDLE of the road at a given screen row (the y value).
 
-    `row` isn't used yet - the road is straight, so every row has the same
+    `y` isn't used yet - the road is straight, so every row has the same
     centre. It's already a parameter so this function's "shape" won't need
     to change later when the road starts to curve.
     """
     return WIDTH // 2
 
 
-def road_left(row):
+def road_left(y):
     """X position of the LEFT edge of the tarmac at this row."""
-    return road_center_x(row) - ROAD_WIDTH // 2
+    return road_center_x(y) - ROAD_WIDTH // 2
 
 
-def road_right(row):
+def road_right(y):
     """X position of the RIGHT edge of the tarmac at this row."""
-    return road_center_x(row) + ROAD_WIDTH // 2
+    return road_center_x(y) + ROAD_WIDTH // 2
 
 
 # ---------------------------------------------------------------------------
@@ -108,11 +108,12 @@ def draw():
     # this drawing code will need to be rewritten when that happens.
     strip_height = 20
     for top in range(0, HEIGHT, strip_height):
-        # `row` is the vertical centre of this particular strip. We look up
-        # the road's position at that row (even though, for now, it's
-        # always the same answer).
-        row = top + strip_height // 2
-        center_x = road_center_x(row)
+        # `y` is the vertical centre of this particular strip - literally
+        # the row of pixels we're drawing right now. We look up the road's
+        # position at that row (even though, for now, it's always the same
+        # answer).
+        y = top + strip_height // 2
+        center_x = road_center_x(y)
 
         # The gravel SHOULDER sits just outside the tarmac on both sides.
         screen.draw.filled_rect(

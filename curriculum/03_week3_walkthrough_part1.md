@@ -404,6 +404,15 @@ def _ordinal(n):
     return f"{n}{suffix}"
 ```
 
+While you're in `draw()`, add the finish distance to the HUD so players
+can see how far the race actually is:
+```python
+    screen.draw.text(f"Distance: {int(distance_traveled)} / {FINISH_DISTANCE} m",
+                     topleft=(10, 40), fontsize=30, color="white")
+```
+This replaces the plain `f"Distance: {int(distance_traveled)} m"` line from
+last week.
+
 Update `draw()`'s end-of-race banner to use it:
 ```python
     if game_state == "crashed":

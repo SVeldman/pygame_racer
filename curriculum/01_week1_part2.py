@@ -57,8 +57,8 @@ player = Actor("car_red", (WIDTH // 2, PLAYER_ROW))
 player_speed = 0.0
 
 
-def road_center_x(row):
-    """X position of the MIDDLE of the road at a given screen row.
+def road_center_x(y):
+    """X position of the MIDDLE of the road at a given screen row (the y value).
 
     Still always the centre of the screen - the road doesn't curve until a
     later week. Everything below asks THIS function where the road is,
@@ -68,25 +68,25 @@ def road_center_x(row):
     return WIDTH // 2
 
 
-def road_left(row):
-    return road_center_x(row) - ROAD_WIDTH // 2
+def road_left(y):
+    return road_center_x(y) - ROAD_WIDTH // 2
 
 
-def road_right(row):
-    return road_center_x(row) + ROAD_WIDTH // 2
+def road_right(y):
+    return road_center_x(y) + ROAD_WIDTH // 2
 
 
-def on_road(x, row):
+def on_road(x, y):
     """True if x is on the tarmac at this row."""
-    return road_left(row) <= x <= road_right(row)
+    return road_left(y) <= x <= road_right(y)
 
 
-def on_shoulder(x, row):
+def on_shoulder(x, y):
     """True if x is on the gravel shoulder - off the road, but not into the
     rough (grass) yet."""
-    if on_road(x, row):
+    if on_road(x, y):
         return False
-    return road_left(row) - SHOULDER_WIDTH <= x <= road_right(row) + SHOULDER_WIDTH
+    return road_left(y) - SHOULDER_WIDTH <= x <= road_right(y) + SHOULDER_WIDTH
 
 
 def draw():
@@ -94,8 +94,8 @@ def draw():
 
     strip_height = 20
     for top in range(0, HEIGHT, strip_height):
-        row = top + strip_height // 2
-        center_x = road_center_x(row)
+        y = top + strip_height // 2
+        center_x = road_center_x(y)
         screen.draw.filled_rect(
             Rect(center_x - ROAD_WIDTH // 2 - SHOULDER_WIDTH, top,
                  SHOULDER_WIDTH, strip_height),

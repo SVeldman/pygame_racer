@@ -242,28 +242,35 @@ Add the following code directly under "GAME CODE" (right above
 `player = Actor("car_red", (WIDTH // 2, PLAYER_ROW))`):
 ```python
 # ROAD DEFINITION
-def road_center_x(row):
-    """X position of the MIDDLE of the road at a given screen row (y value)."""
+def road_center_x(y):
+    """X position of the MIDDLE of the road at a given screen row (the y value)."""
     return WIDTH // 2
 
 
-def road_left(row):
+def road_left(y):
     """X position of the LEFT edge of the tarmac at this row."""
-    return road_center_x(row) - ROAD_WIDTH // 2
+    return road_center_x(y) - ROAD_WIDTH // 2
 
 
-def road_right(row):
+def road_right(y):
     """X position of the RIGHT edge of the tarmac at this row."""
-    return road_center_x(row) + ROAD_WIDTH // 2
+    return road_center_x(y) + ROAD_WIDTH // 2
 ```
 *Expected State: no visible change. The road's bounds now exist in code,
 but nothing draws them yet.*
 
+**Teaching Note — what `y` means here:** `y` is Pygame Zero's own name for
+a vertical screen coordinate (the same `y` as in `Actor("car_red", (x,
+y))`). Every place these road functions get called, `y` is going to be the
+vertical middle of whatever horizontal strip of the road is currently being
+drawn or checked — in other words, `y` **is** the row of pixels we're
+working with, just named the way Pygame Zero itself names it.
+
 **Teaching Note — why a function, and not just a constant?**
-`road_center_x(row)` returns the exact same number right now (`WIDTH //
+`road_center_x(y)` returns the exact same number right now (`WIDTH //
 2`), so it *looks* pointless. The payoff is a few weeks away: later in the
 course, this function starts returning a *different* number depending on
-`row`, and that's what makes the road curve. Because every other piece of
+`y`, and that's what makes the road curve. Because every other piece of
 the game always **asks this function** where the road is instead of
 assuming it knows, the road will be able to curve later without rewriting
 any of the code that draws it or drives on it. Plant the seed now; it's
@@ -275,10 +282,10 @@ fine if it doesn't fully click until Week 4.
 `//` ("floor division") divides and rounds *down* to the nearest whole
 number, so `801 // 2 = 400`.
 
-**Classroom Prompt (For Fast Finishers):** `road_center_x(row)` takes a
-`row` argument it doesn't use yet. Ask early finishers to guess what kind
+**Classroom Prompt (For Fast Finishers):** `road_center_x(y)` takes a
+`y` argument it doesn't use yet. Ask early finishers to guess what kind
 of value it might return once curves exist — is it the same for every
-`row`, or different depending on how far down the screen you look?
+`y`, or different depending on how far down the screen you look?
 
 ## Step 5: Draw the Road
 
@@ -288,8 +295,8 @@ Add the following code to the `draw` function, right after `screen.fill(GRASS)`.
 ```python
     strip_height = 20
     for top in range(0, HEIGHT, strip_height):
-        row = top + strip_height // 2
-        center_x = road_center_x(row)
+        y = top + strip_height // 2
+        center_x = road_center_x(y)
 
         screen.draw.filled_rect(
             Rect(center_x - ROAD_WIDTH // 2, top, ROAD_WIDTH, strip_height),
@@ -308,10 +315,11 @@ value), so it looks like one solid road. Nothing about this loop changes
 when the road starts curving — only what `road_center_x()` returns.
 
 **The Geometry:**
-- `row = top + strip_height // 2` finds the **vertical middle** of the
-  strip, not its top edge. With `top = 100` and `strip_height = 20`, `row =
-  110`. That matters once `road_center_x()` varies smoothly by row — the
-  strip gets positioned using the road's location at its *center*.
+- `y = top + strip_height // 2` finds the **vertical middle** of the
+  strip, not its top edge — literally the row of pixels this strip is
+  centered on. With `top = 100` and `strip_height = 20`, `y = 110`. That
+  matters once `road_center_x()` varies smoothly by row — the strip gets
+  positioned using the road's location at its *center*.
 - `Rect(x, y, width, height)` positions a rectangle by its **top-left
   corner**, not its center. To draw a 220-pixel-wide rectangle *centered*
   on `center_x = 400`, its left edge has to start 110 pixels left of
@@ -349,7 +357,7 @@ further right, no extra subtraction needed.
 
 **Classroom Prompt (For Fast Finishers):** this code computes `center_x -
 ROAD_WIDTH // 2` and `center_x + ROAD_WIDTH // 2` by hand, but
-`road_left(row)` and `road_right(row)` from Step 4 already compute exactly
+`road_left(y)` and `road_right(y)` from Step 4 already compute exactly
 those two values. Could this call those functions instead of repeating the
 formula? (Yes — it's a good check for whether the earlier functions
 actually clicked. We leave it written out longhand here to keep every
@@ -391,8 +399,8 @@ def draw():
 
     strip_height = 20
     for top in range(0, HEIGHT, strip_height):
-        row = top + strip_height // 2
-        center_x = road_center_x(row)
+        y = top + strip_height // 2
+        center_x = road_center_x(y)
 
         screen.draw.filled_rect(
             Rect(center_x - ROAD_WIDTH // 2 - SHOULDER_WIDTH, top,
@@ -438,16 +446,16 @@ LINE = (240, 240, 240)
 
 
 ### ROAD
-def road_center_x(row):
+def road_center_x(y):
     return WIDTH // 2
 
 
-def road_left(row):
-    return road_center_x(row) - ROAD_WIDTH // 2
+def road_left(y):
+    return road_center_x(y) - ROAD_WIDTH // 2
 
 
-def road_right(row):
-    return road_center_x(row) + ROAD_WIDTH // 2
+def road_right(y):
+    return road_center_x(y) + ROAD_WIDTH // 2
 
 
 ### PLAYER
@@ -460,8 +468,8 @@ def draw():
 
     strip_height = 20
     for top in range(0, HEIGHT, strip_height):
-        row = top + strip_height // 2
-        center_x = road_center_x(row)
+        y = top + strip_height // 2
+        center_x = road_center_x(y)
 
         screen.draw.filled_rect(
             Rect(center_x - ROAD_WIDTH // 2 - SHOULDER_WIDTH, top,

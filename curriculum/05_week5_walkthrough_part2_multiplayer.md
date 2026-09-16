@@ -586,7 +586,6 @@ def make_player(label, band_top, key_left, key_right, key_up, key_down):
 
 game_state = "waiting"          # "waiting"|"countdown"|"racing"|"won"
 countdown_timer = 0
-winner_label = None
 
 players = [
     make_player("P1", 0, "left", "right", "up", "down"),
@@ -664,9 +663,8 @@ def _new_grid():
 
 
 def new_race():
-    global game_state, winner_label
+    global game_state
     game_state = "waiting"
-    winner_label = None
     _new_grid()
     for player in players:
         player["speed"] = 0.0
@@ -1319,8 +1317,6 @@ def draw():
         _draw_menu()
     elif game_state == "countdown":
         _draw_countdown()
-    elif game_state == "won":
-        _banner(f"{winner_label} WINS!", "Press SPACE to race again")
 ```
 
 And write `draw_player_band()`, based on your existing `draw()` from Part 1
@@ -1513,7 +1509,7 @@ loop.
 Finally, `update()` itself becomes a short coordinator:
 ```python
 def update():
-    global game_state, countdown_timer, winner_label
+    global game_state, countdown_timer
 
     if game_state == "waiting":
         return   # the menu is driven entirely by on_key_down()
@@ -1532,16 +1528,11 @@ def update():
     update_racers()
     for player in players:
         update_player(player)
-
-    for player in players:
-        if not player["finished"] and player["distance"] >= FINISH_DISTANCE:
-            player["finished"] = True
-            winner_label = player["label"]
-            game_state = "won"
-            break
 ```
-*Expected State: identical on screen to the Mid-Session Checkpoint — still
-explaining existing code, no behavior change.*
+*Expected State: both players can now drive, brake, and drift onto the
+shoulder independently, and colliding with a racer freezes just that one
+player. Nobody can finish the race yet — crossing the finish line does
+nothing until Step 10 adds it.*
 
 **Teaching Note:** racers update before the players' loop. This doesn't
 strictly matter for correctness here, but it reads naturally as "move the
@@ -1666,12 +1657,10 @@ high speed if that number were doubled, or cut in half — would players
 
 ## Step 10: Each Player Gets Their Own Finish
 
-Right now the race ends the INSTANT one player crosses the finish line —
-`game_state` jumps straight to `"won"`, which makes `update()` return early
-and freezes the other player mid-race, whether they've finished or not.
-This step makes the race wait for both players, and gives each one their
-own placement banner, the same idea as the single-player "YOU FINISHED
-Nth!" screen from Week 3.
+Nobody can finish the race yet. This step gives each player their own
+placement the moment THEY cross the line — without ending the race for
+whoever hasn't finished — and their own placement banner, the same idea as
+the single-player "YOU FINISHED Nth!" screen from Week 3.
 
 Add a `"place"` field to each player, and a shared `race_results` list —
 right after `racers = []`:
@@ -1740,9 +1729,9 @@ which falls into the movement code). Without a `"finished"` state to check,
 a player who already crossed the line would keep steering and accelerating
 every frame after finishing, same as any other frame.
 
-Now replace the finish-line check in `update()` — instead of declaring an
-immediate winner, each player gets their own place, and the race only ends
-once **everyone** has one:
+Now add the finish-line check to `update()`, right after the per-player
+loop — each player gets their own place the moment THEY cross, and the race
+only ends once **everyone** has one:
 ```python
     # Each player gets their OWN place, the moment THEY cross - the race
     # keeps going for whoever hasn't finished yet, instead of ending the
@@ -1759,10 +1748,6 @@ once **everyone** has one:
         game_state = "won"
 ```
 
-Also remove `winner_label` entirely — it's no longer needed anywhere
-(`global game_state, countdown_timer` is all `update()` needs now), since
-each band shows its own result instead of one shared announcement.
-
 Add the same `_ordinal()` helper single-player used since Week 3, right
 after `_banner()`:
 ```python
@@ -1773,10 +1758,8 @@ def _ordinal(n):
     return f"{n}{suffix}"
 ```
 
-Finally, replace `draw()`'s old whole-window `"won"` banner (delete the
-`elif game_state == "won": _banner(...)` line — it's dead code now, nothing
-sets `winner_label` anymore) with a per-band banner in `draw_player_band()`,
-right after the existing `"CRASHED! Recovering..."` check:
+Finally, add a per-band banner in `draw_player_band()`, right after the
+existing `"CRASHED! Recovering..."` check:
 ```python
     elif player["state"] == "finished":
         # This player's own band gets its own placement banner - the race

@@ -42,17 +42,17 @@ with it, with no other edits needed.
 Add these two functions right after `road_right()`:
 
 ```python
-def on_road(x, row):
+def on_road(x, y):
     """True if x is on the tarmac at this row."""
-    return road_left(row) <= x <= road_right(row)
+    return road_left(y) <= x <= road_right(y)
 
 
-def on_shoulder(x, row):
+def on_shoulder(x, y):
     """True if x is on the gravel shoulder - off the road, but not into the
     rough (grass) yet."""
-    if on_road(x, row):
+    if on_road(x, y):
         return False
-    return road_left(row) - SHOULDER_WIDTH <= x <= road_right(row) + SHOULDER_WIDTH
+    return road_left(y) - SHOULDER_WIDTH <= x <= road_right(y) + SHOULDER_WIDTH
 ```
 *Expected State: no visible change — these functions exist, but nothing
 calls them yet.*
@@ -60,7 +60,7 @@ calls them yet.*
 **Teaching Note — why two functions, not one?** There are three possible
 answers to "where is the car?": on the road, on the shoulder, or out in
 the rough. `on_road()` answers the first question directly. `on_shoulder()`
-answers the second by first ruling out the road (`if on_road(x, row):
+answers the second by first ruling out the road (`if on_road(x, y):
 return False`), then checking a *wider* range that extends
 `SHOULDER_WIDTH` past each edge of the tarmac. Whatever's left over — not
 on the road, not on the shoulder — is the rough, by elimination. There's
@@ -68,7 +68,7 @@ no `on_rough()` function, because nothing ever needs to ask that question
 directly; `update()` just uses `else` for it (Step 3).
 
 **Classroom Prompt (For Fast Finishers):** have them write the
-`on_rough(x, row)` function that's conspicuously missing, as a standalone
+`on_rough(x, y)` function that's conspicuously missing, as a standalone
 exercise. It should return `True` exactly when both `on_road()` and
 `on_shoulder()` return `False` — a direct check against the `else` branch
 `update()` uses instead.
@@ -153,26 +153,26 @@ player_speed = 0.0
 
 
 ### ROAD
-def road_center_x(row):
+def road_center_x(y):
     return WIDTH // 2
 
 
-def road_left(row):
-    return road_center_x(row) - ROAD_WIDTH // 2
+def road_left(y):
+    return road_center_x(y) - ROAD_WIDTH // 2
 
 
-def road_right(row):
-    return road_center_x(row) + ROAD_WIDTH // 2
+def road_right(y):
+    return road_center_x(y) + ROAD_WIDTH // 2
 
 
-def on_road(x, row):
-    return road_left(row) <= x <= road_right(row)
+def on_road(x, y):
+    return road_left(y) <= x <= road_right(y)
 
 
-def on_shoulder(x, row):
-    if on_road(x, row):
+def on_shoulder(x, y):
+    if on_road(x, y):
         return False
-    return road_left(row) - SHOULDER_WIDTH <= x <= road_right(row) + SHOULDER_WIDTH
+    return road_left(y) - SHOULDER_WIDTH <= x <= road_right(y) + SHOULDER_WIDTH
 
 
 ### DRAW
@@ -181,8 +181,8 @@ def draw():
 
     strip_height = 20
     for top in range(0, HEIGHT, strip_height):
-        row = top + strip_height // 2
-        center_x = road_center_x(row)
+        y = top + strip_height // 2
+        center_x = road_center_x(y)
 
         screen.draw.filled_rect(
             Rect(center_x - ROAD_WIDTH // 2 - SHOULDER_WIDTH, top,
@@ -299,26 +299,26 @@ player_speed = 0.0
 
 
 ### ROAD
-def road_center_x(row):
+def road_center_x(y):
     return WIDTH // 2
 
 
-def road_left(row):
-    return road_center_x(row) - ROAD_WIDTH // 2
+def road_left(y):
+    return road_center_x(y) - ROAD_WIDTH // 2
 
 
-def road_right(row):
-    return road_center_x(row) + ROAD_WIDTH // 2
+def road_right(y):
+    return road_center_x(y) + ROAD_WIDTH // 2
 
 
-def on_road(x, row):
-    return road_left(row) <= x <= road_right(row)
+def on_road(x, y):
+    return road_left(y) <= x <= road_right(y)
 
 
-def on_shoulder(x, row):
-    if on_road(x, row):
+def on_shoulder(x, y):
+    if on_road(x, y):
         return False
-    return road_left(row) - SHOULDER_WIDTH <= x <= road_right(row) + SHOULDER_WIDTH
+    return road_left(y) - SHOULDER_WIDTH <= x <= road_right(y) + SHOULDER_WIDTH
 
 
 ### DRAW
@@ -327,8 +327,8 @@ def draw():
 
     strip_height = 20
     for top in range(0, HEIGHT, strip_height):
-        row = top + strip_height // 2
-        center_x = road_center_x(row)
+        y = top + strip_height // 2
+        center_x = road_center_x(y)
         screen.draw.filled_rect(
             Rect(center_x - ROAD_WIDTH // 2 - SHOULDER_WIDTH, top,
                  SHOULDER_WIDTH, strip_height),

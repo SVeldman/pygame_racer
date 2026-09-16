@@ -115,10 +115,9 @@ with the distance-based version:
             screen.draw.filled_rect(Rect(center_x - 4, top, 8, strip_height), LINE)
 ```
 
-While you're in there, rename the `row` parameter on `road_center_x()`,
-`road_left()`, and `road_right()` from Week 1 to `y`, matching `dist_at(y)`.
-Either name works — it's just a screen row either way — but the checkpoint
-code below uses `y` everywhere for consistency.
+`dist_at(y)` matches the `y` name already used by `road_center_x()`,
+`road_left()`, `road_right()`, `on_road()`, and `on_shoulder()` since Week
+1 — no renaming needed here.
 
 Also add a distance readout to the HUD, right after the speed text:
 
@@ -458,9 +457,9 @@ drags toward each zone's speed cap off the tarmac, and drives over a centre
 line that streams continuously down the screen. No rival on screen yet.*
 
 **Watch for:** dashes that look uneven or jump around usually trace back to
-a leftover reference to the old `row` variable name instead of `y`
-somewhere in `draw()`. Confirm `dist_at(y)` is being called with the same
-variable used to compute `center_x` and the strip's on-screen position.
+`dist_at(y)` being called with a different variable than the one used to
+compute `center_x` and the strip's on-screen position — double-check both
+use the same `y` inside the loop.
 
 **Up Next:** there's no rival in this file yet, and nothing to crash into —
 that's deliberate, so the scrolling illusion can be understood completely on

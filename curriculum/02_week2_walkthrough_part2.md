@@ -46,10 +46,20 @@ the block above:
 # fit, instead of us having to guess a new WIDTH by hand every time.
 GRASS_MARGIN = 200        # how much grass to leave visible on each side
 WIDTH = ROAD_WIDTH + 2 * SHOULDER_WIDTH + 2 * GRASS_MARGIN
+HEIGHT = 600
 ```
 *Expected State: the same game as before — the window may render at a
 slightly different width than 800px depending on the formula above, but
 there's still no rival on screen.*
+
+**Teaching Note — why `WIDTH` and `HEIGHT` moved:** in Week 1, `WIDTH` and
+`HEIGHT` sat at the very top of the file as flat numbers. `WIDTH` can't stay
+there anymore because it's now a formula built from `ROAD_WIDTH`, `SHOULDER_WIDTH`,
+and `GRASS_MARGIN`, and Python has to see those on earlier lines before it
+can compute `WIDTH` from them. `HEIGHT` doesn't depend on anything, so it
+didn't *have* to move — it's brought down here purely so the two window-size
+constants stay next to each other instead of splitting `WIDTH` and `HEIGHT`
+across two different parts of the file.
 
 **Teaching Note:** two numbers changed from flat constants to formulas.
 - `ROAD_WIDTH` used to be a flat `220`. Now it's `LANE_WIDTH * LANE_COUNT` —
